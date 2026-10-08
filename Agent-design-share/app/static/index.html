@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面壁 - AI 面试修炼系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background: #f0f2f5; }
+.navbar-brand { font-weight: 700; letter-spacing: 1px; }
+.tech-badge { font-size: 11px; font-family: 'SF Mono', 'Consolas', monospace; }
+.score-bar { height: 6px; border-radius: 3px; background: #e9ecef; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+.score-fill.hybrid { background: linear-gradient(90deg, #667eea, #764ba2); }
+.score-fill.priority { background: #f093fb; }
+.score-fill.final { background: linear-gradient(90deg, #11998e, #38ef7d); }
+.chat-bubble { padding: 12px 16px; border-radius: 12px; margin: 8px 0; max-width: 85%; }
+.bubble-interviewer { background: #e3f2fd; align-self: flex-start; border-bottom-left-radius: 2px; }
+.bubble-candidate { background: #f1f8e9; align-self: flex-end; border-bottom-right-radius: 2px; }
+.chat-area { display: flex; flex-direction: column; max-height: 400px; overflow-y: auto; }
+.kb-ref-card { background: #fffde7; border-left: 3px solid #ffc107; }
+.metric-card { text-align: center; padding: 16px; }
+.metric-card .value { font-size: 28px; font-weight: 700; }
+.metric-card .label { font-size: 12px; color: #888; }
+.fc-card { border-left: 4px solid #667eea; }
+.fade-in { animation: fadeIn .3s ease-in; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.priority-change { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 600; animation: pulse .5s; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+.nav-pills .nav-link { color: #555; }
+.nav-pills .nav-link.active { background: #667eea; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand navbar-dark" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+  <div class="container">
+    <span class="navbar-brand"><i class="bi bi-shield-check"></i> 面壁</span>
+    <span class="text-white-50 small">Milvus 向量检索 · SM-2 间隔重复算法 · LLM 智能评分</span>
+  </div>
+</nav>
+
+<div class="container mt-3">
+<ul class="nav nav-pills mb-3" id="mainTabs">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#kb"><i class="bi bi-book"></i> 知识库</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#fc"><i class="bi bi-card-text"></i> 闪卡复习</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#iv"><i class="bi bi-chat-dots"></i> 模拟面试</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#sp"><i class="bi bi-mic"></i> 语音复盘</a></li>
+</ul>
+
+<div class="tab-content">
+
+<!-- ══════ 知识库 Tab ══════ -->
+<div class="tab-pane fade show active" id="kb">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-clipboard-plus"></i> 粘贴内容</div>
+        <div class="card-body">
+          <input class="form-control mb-2" id="kb-title" placeholder="标题（可选）">
+          <textarea class="form-control mb-2" id="kb-content" rows="4" placeholder="粘贴面经内容..."></textarea>
+          <div class="row g-2">
+            <div class="col">
+              <select class="form-select" id="kb-source">
+                <option value="用户粘贴">用户粘贴</option><option value="小红书">小红书</option>
+                <option value="脉脉">脉脉</option><option value="自己总结">自己总结</option>
+              </select>
+            </div>
+            <div class="col-auto"><button class="btn btn-primary" onclick="pasteContent()"><i class="bi bi-plus-lg"></i> 保存入库</button></div>
+          </div>
+          <div id="kb-paste-msg" class="mt-2"></div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-pencil-square"></i> 编辑笔记</div>
+        <div class="card-body">
+          <select class="form-select mb-2" id="kb-edit-select" onchange="loadFileForEdit()"></select>
+          <textarea class="form-control mb-2" id="kb-edit-content" rows="4" placeholder="选择笔记后显示内容" style="display:none"></textarea>
+          <button class="btn btn-primary btn-sm" id="kb-edit-btn" style="display:none" onclick="saveEdit()"><i class="bi bi-save"></i> 保存修改</button>
+          <div id="kb-edit-msg" class="mt-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-search"></i> 语义搜索</div>
+        <div class="card-body">
+          <div class="input-group mb-2">
+            <input class="form-control" id="kb-query" placeholder="搜索，如：CAP定理、分布式一致性">
+            <button class="btn btn-primary" onclick="searchKB()"><i class="bi bi-search"></i></button>
+          </div>
+          <div id="kb-search-meta" class="small text-muted mb-2" style="display:none"></div>
+          <div id="kb-search-results"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-folder2-open"></i> 已有笔记</span>
+          <button class="btn btn-sm btn-outline-secondary" onclick="listKB()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive"><table class="table table-hover mb-0" id="kb-table">
+            <thead><tr><th>标题</th><th>来源</th><th>优先级</th><th>时间</th><th></th></tr></thead>
+            <tbody id="kb-list"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 闪卡 Tab ══════ -->
+<div class="tab-pane fade" id="fc">
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card metric-card"><div class="value" id="fc-total">-</div><div class="label">总卡数</div></div></div>
+    <div class="col-md-3"><div class="card metric-card"><div class="value text-primary" id="fc-learning">-</div><div class="label">学习中</div></div></div>
+    <div class="col-md-3"><div class="card metric-card"><div class="value text-warning" id="fc-due-count">-</div><div class="label">今日到期</div></div></div>
+    <div class="col-md-3"><div class="card metric-card"><div class="value text-success" id="fc-retired">-</div><div class="label">已掌握</div></div></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-plus-circle"></i> 手动创建</div>
+        <div class="card-body">
+          <input class="form-control mb-2" id="fc-q" placeholder="问题">
+          <input class="form-control mb-2" id="fc-a" placeholder="答案">
+          <div class="row g-2">
+            <div class="col"><input class="form-control" id="fc-col" placeholder="集合（默认 General）"></div>
+            <div class="col-auto"><button class="btn btn-primary" onclick="createCard()">创建</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-arrow-left-right"></i> 导入/导出</div>
+        <div class="card-body py-2">
+          <a href="/api/flashcards/export" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> 导出CSV</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><i class="bi bi-stars"></i> AI 从知识库生成 <span class="badge bg-info tech-badge">知识库 → LLM → 闪卡</span></div>
+        <div class="card-body">
+          <div class="input-group mb-2">
+            <input class="form-control" id="fc-ai-topic" placeholder="输入主题，如：Redis持久化、CAP定理">
+            <button class="btn btn-success" onclick="aiGenCards()"><i class="bi bi-stars"></i> 生成</button>
+          </div>
+          <div id="fc-ai-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between">
+          <span><i class="bi bi-clock-history"></i> 今日复习</span>
+          <button class="btn btn-sm btn-outline-primary" onclick="loadDue()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+        </div>
+        <div class="card-body" id="fc-due-list">
+          <p class="text-muted">点击刷新加载到期闪卡</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 面试 Tab ══════ -->
+<div class="tab-pane fade" id="iv">
+  <div id="iv-setup" class="card mb-3">
+    <div class="card-header"><i class="bi bi-play-circle"></i> 开始面试</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-3">
+          <select class="form-select" id="iv-type">
+            <option value="tech">技术面试</option>
+            <option value="behavior">行为面试</option>
+            <option value="system_design">系统设计</option>
+          </select>
+        </div>
+        <div class="col-md-4"><input class="form-control" id="iv-job" placeholder="目标岗位（可选）"></div>
+        <div class="col-md-3"><input class="form-control" id="iv-company" placeholder="目标公司（可选）"></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100" onclick="startIV()"><i class="bi bi-play-fill"></i> 开始</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="iv-session" style="display:none">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-chat-dots"></i> 面试进行中</span>
+        <button class="btn btn-sm btn-outline-danger" onclick="endIV()"><i class="bi bi-stop-fill"></i> 结束面试</button>
+      </div>
+      <div class="card-body">
+        <div class="chat-area" id="iv-chat"></div>
+
+        <div id="iv-kb-refs" class="mt-2"></div>
+
+        <div id="iv-eval-bar" class="mt-2" style="display:none">
+          <div class="d-flex align-items-center gap-3 p-2 bg-light rounded">
+            <span class="badge bg-primary fs-6" id="iv-score-badge">-/5</span>
+            <small id="iv-eval-text" class="text-muted flex-grow-1"></small>
+          </div>
+        </div>
+
+        <div class="input-group mt-3">
+          <textarea class="form-control" id="iv-answer" rows="2" placeholder="输入你的回答...（Shift+Enter换行）" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();submitIV()}"></textarea>
+          <button class="btn btn-primary" id="iv-send-btn" onclick="submitIV()"><i class="bi bi-send"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between">
+      <span><i class="bi bi-journal-text"></i> 历史面试</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadSessions()"><i class="bi bi-arrow-clockwise"></i></button>
+    </div>
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0">
+      <thead><tr><th>类型</th><th>岗位</th><th>题数</th><th>均分</th><th>状态</th><th>时间</th><th></th></tr></thead>
+      <tbody id="iv-sessions"></tbody>
+    </table></div></div>
+  </div>
+
+  <!-- 面试复盘详情弹窗 -->
+  <div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-clipboard-data"></i> 面试复盘</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="review-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 语音 Tab ══════ -->
+<div class="tab-pane fade" id="sp">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-mic"></i> 语音转文字 <span class="badge bg-secondary tech-badge">SenseVoice / faster-whisper 本地CPU</span></div>
+        <div class="card-body">
+          <input type="file" class="form-control mb-2" id="sp-file" accept=".wav,.mp3,.m4a,.flac,.ogg,.webm">
+          <button class="btn btn-primary" onclick="transcribe()"><i class="bi bi-soundwave"></i> 转写</button>
+          <div id="sp-result" class="mt-2"></div>
+          <button class="btn btn-outline-success btn-sm mt-2" id="sp-save-btn" style="display:none" onclick="saveTranscriptToKB()">
+            <i class="bi bi-database-add"></i> 存入知识库（作为面试信号）
+          </button>
+          <div id="sp-save-msg" class="mt-1"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-clipboard-data"></i> 面试复盘分析 <span class="badge bg-secondary tech-badge">LLM Summarize</span></div>
+        <div class="card-body">
+          <textarea class="form-control mb-2" id="sp-text" rows="4" placeholder="粘贴面试文字内容或转写结果..."></textarea>
+          <button class="btn btn-primary" onclick="analyze()"><i class="bi bi-stars"></i> AI 分析</button>
+          <div id="sp-analysis" class="mt-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- tab-content -->
+</div><!-- container -->
+
+<footer class="text-center text-muted py-4 small">
+  面壁 &middot; Milvus 向量检索 + BM25 + RRF 混合搜索 &middot; SM-2 间隔重复算法 &middot; LLM 知识库辅助评分 &middot; ONNX 本地推理
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '';
+
+async function api(path, opts = {}) {
+  try {
+    const r = await fetch(API + path, opts);
+    return await r.json();
+  } catch(e) { return {ok:false, error:e.message}; }
+}
+function post(path, body) {
+  return api(path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+}
+
+// ── 知识库 ─────────────────────────────────────────────
+
+async function pasteContent() {
+  const content = document.getElementById('kb-content').value;
+  if (!content) return;
+  const r = await post('/api/knowledge/paste', {
+    title: document.getElementById('kb-title').value || null,
+    content, source_tag: document.getElementById('kb-source').value
+  });
+  document.getElementById('kb-paste-msg').innerHTML = r.status === 'saved'
+    ? `<div class="alert alert-success py-1 fade-in"><i class="bi bi-check-circle"></i> 已保存: ${r.filename}</div>` : '';
+  document.getElementById('kb-content').value = '';
+  document.getElementById('kb-title').value = '';
+  listKB();
+}
+
+async function searchKB() {
+  const q = document.getElementById('kb-query').value;
+  if (!q) return;
+  const r = await post('/api/knowledge/search', {query:q, top_k:5});
+  // 显示搜索引擎信息
+  const meta = document.getElementById('kb-search-meta');
+  meta.style.display = 'block';
+  meta.innerHTML = `<span class="badge bg-info tech-badge">${r.engine || 'Memsearch'}</span>
+    <span class="badge bg-secondary tech-badge">${r.method || 'Hybrid'}</span>
+    <span class="badge bg-success tech-badge"><i class="bi bi-lightning"></i> ${r.search_ms || '?'}ms 本地向量化，零API调用</span>
+    <span class="text-muted ms-2">${r.count || 0} 条结果</span>`;
+
+  const el = document.getElementById('kb-search-results');
+  if (!r.results || !r.results.length) { el.innerHTML = '<p class="text-muted">无结果</p>'; return; }
+
+  el.innerHTML = r.results.map((item, i) => {
+    const kwBadge = item.keyword_match
+      ? '<span class="badge bg-success tech-badge">关键词命中</span>'
+      : '<span class="badge bg-danger tech-badge">关键词无命中 - 纯语义召回</span>';
+    return `
+    <div class="card mb-2 fade-in" style="animation-delay:${i*0.05}s">
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <strong>${i+1}. ${item.heading || '未分类'}</strong>
+            <span class="text-muted small ms-2">${(item.source||'').split('/').pop()}</span>
+            ${kwBadge}
+          </div>
+          <span class="badge bg-success fs-6">${item.final_score}</span>
+        </div>
+        <div class="row mt-2 g-1">
+          <div class="col-4">
+            <div class="small text-muted">Hybrid (Vector+BM25+RRF)</div>
+            <div class="score-bar"><div class="score-fill hybrid" style="width:${Math.min(item.hybrid_score*3000,100)}%"></div></div>
+            <div class="small fw-bold">${item.hybrid_score}</div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">Priority Boost (用户反馈)</div>
+            <div class="score-bar"><div class="score-fill priority" style="width:${(item.priority||2)/5*100}%"></div></div>
+            <div class="small fw-bold">&times;${item.priority_boost} <span class="text-muted">(P=${item.priority})</span></div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">Final Score</div>
+            <div class="score-bar"><div class="score-fill final" style="width:${Math.min(item.final_score*3000,100)}%"></div></div>
+            <div class="small fw-bold">${item.final_score}</div>
+          </div>
+        </div>
+        <div class="small text-muted mt-2" style="max-height:60px;overflow:hidden">${(item.content||'').substring(0,200)}</div>
+        <div class="d-flex justify-content-end gap-1 mt-1">
+          <button class="btn btn-sm btn-outline-success py-0" onclick="kbFeedback('${item.chunk_hash}',true,this)"><i class="bi bi-hand-thumbs-up"></i> 有用</button>
+          <button class="btn btn-sm btn-outline-danger py-0" onclick="kbFeedback('${item.chunk_hash}',false,this)"><i class="bi bi-hand-thumbs-down"></i> 没用</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function listKB() {
+  const r = await api('/api/knowledge/list');
+  const el = document.getElementById('kb-list');
+  populateEditSelect(r.items);
+  if (!r.items || !r.items.length) { el.innerHTML = '<tr><td colspan="5" class="text-muted text-center">暂无笔记</td></tr>'; return; }
+  el.innerHTML = r.items.map(f => `
+    <tr>
+      <td><strong>${f.title}</strong></td>
+      <td><span class="badge bg-light text-dark">${f.source_tag}</span></td>
+      <td><span class="badge bg-${f.priority>=3?'success':f.priority>=2?'warning':'secondary'}">${f.priority}</span></td>
+      <td class="small text-muted">${f.created_at}</td>
+      <td><button class="btn btn-sm btn-outline-danger" onclick="deleteKB('${f.filename}')"><i class="bi bi-trash"></i></button></td>
+    </tr>
+  `).join('');
+}
+
+async function deleteKB(fn) {
+  if (!confirm('确定删除？')) return;
+  await api('/api/knowledge/file/'+encodeURIComponent(fn), {method:'DELETE'});
+  listKB();
+}
+
+async function kbFeedback(hash, helpful, btn) {
+  const r = await post('/api/knowledge/feedback', {chunk_hash:hash, helpful});
+  const card = btn.closest('.card-body');
+  const color = helpful ? '#2ecc71' : '#e74c3c';
+  const arrow = helpful ? '&uarr;' : '&darr;';
+  if (r.status === 'updated') {
+    card.insertAdjacentHTML('beforeend',
+      `<div class="priority-change small mt-1" style="color:${color}">${arrow} 优先级: ${r.old_priority} &rarr; ${r.new_priority}</div>`);
+  }
+  btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
+}
+
+async function loadFileForEdit() {
+  const fn = document.getElementById('kb-edit-select').value;
+  if (!fn) { document.getElementById('kb-edit-content').style.display='none'; document.getElementById('kb-edit-btn').style.display='none'; return; }
+  const r = await api('/api/knowledge/file/'+encodeURIComponent(fn));
+  document.getElementById('kb-edit-content').value = r.content || '';
+  document.getElementById('kb-edit-content').style.display = '';
+  document.getElementById('kb-edit-btn').style.display = '';
+}
+async function saveEdit() {
+  const fn = document.getElementById('kb-edit-select').value;
+  if (!fn) return;
+  const content = document.getElementById('kb-edit-content').value;
+  // 提取正文部分（---后面的内容）
+  const parts = content.split('---\n\n');
+  const body = parts.length > 1 ? parts.slice(1).join('---\n\n') : content;
+  const r = await api('/api/knowledge/file/'+encodeURIComponent(fn), {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:body})
+  });
+  document.getElementById('kb-edit-msg').innerHTML = r.status==='updated'
+    ? '<div class="alert alert-success py-1 small fade-in"><i class="bi bi-check-circle"></i> 已保存</div>' : '';
+}
+function populateEditSelect(items) {
+  const sel = document.getElementById('kb-edit-select');
+  sel.innerHTML = '<option value="">选择要编辑的笔记...</option>' + (items||[]).map(f => `<option value="${f.filename}">${f.title}</option>`).join('');
+}
+
+// ── 闪卡 ───────────────────────────────────────────────
+
+async function loadFcStats() {
+  const r = await api('/api/flashcards/stats');
+  document.getElementById('fc-total').textContent = r.total || 0;
+  document.getElementById('fc-learning').textContent = r.learning || 0;
+  document.getElementById('fc-retired').textContent = r.retired || 0;
+  document.getElementById('fc-due-count').textContent = r.due_now || 0;
+}
+
+async function createCard() {
+  const q = document.getElementById('fc-q').value, a = document.getElementById('fc-a').value;
+  if (!q || !a) return alert('请填写问题和答案');
+  await post('/api/flashcards/cards', {question:q, answer:a, collection:document.getElementById('fc-col').value||'General'});
+  document.getElementById('fc-q').value = '';
+  document.getElementById('fc-a').value = '';
+  loadFcStats(); loadDue();
+}
+
+async function loadDue() {
+  const r = await api('/api/flashcards/cards/due');
+  const el = document.getElementById('fc-due-list');
+  loadFcStats();
+  if (!r.cards || !r.cards.length) { el.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-emoji-smile"></i> 今日无到期闪卡</div>'; return; }
+  el.innerHTML = r.cards.map(c => {
+    const intervals = {easy:'7天后', good:'3天后', hard:'明天'};
+    return `
+    <div class="card fc-card mb-2 fade-in">
+      <div class="card-body py-2">
+        <div class="fw-bold mb-1"><i class="bi bi-question-circle"></i> ${c.question}</div>
+        <div id="ans-${c.id}" style="display:none" class="alert alert-light py-1 mb-2"><i class="bi bi-lightbulb"></i> ${c.answer}</div>
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ans-${c.id}').style.display=document.getElementById('ans-${c.id}').style.display==='none'?'block':'none'">
+            <i class="bi bi-eye"></i> 答案
+          </button>
+          <button class="btn btn-sm btn-success" onclick="rateCard('${c.id}','easy',this)">
+            Easy <span class="text-muted small">(${intervals.easy})</span>
+          </button>
+          <button class="btn btn-sm btn-primary" onclick="rateCard('${c.id}','good',this)">
+            Good <span class="text-muted small">(${intervals.good})</span>
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="rateCard('${c.id}','hard',this)">
+            Hard <span class="text-muted small">(${intervals.hard})</span>
+          </button>
+          <span class="small text-muted ms-auto">连续easy: ${c.ease_streak}/3</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function rateCard(id, rating, btn) {
+  await post(`/api/flashcards/cards/${id}/rate`, {card_id:id, rating});
+  btn.closest('.fc-card').style.opacity = '0.3';
+  setTimeout(() => loadDue(), 300);
+}
+
+// ── 面试 ───────────────────────────────────────────────
+
+let sessionId = null;
+
+let ivLoading = false;
+async function startIV() {
+  if (ivLoading) return;
+  ivLoading = true;
+  const r = await post('/api/interview/start', {
+    interview_type: document.getElementById('iv-type').value,
+    job_title: document.getElementById('iv-job').value || null,
+    company: document.getElementById('iv-company').value || null,
+  });
+  if (!r.ok) { ivLoading = false; return alert('启动失败: '+(r.error||'')); }
+  sessionId = r.session_id;
+  document.getElementById('iv-setup').style.display = 'none';
+  document.getElementById('iv-session').style.display = 'block';
+  document.getElementById('iv-chat').innerHTML = '';
+  addBubble('interviewer', r.question);
+}
+
+function addBubble(role, text) {
+  const chat = document.getElementById('iv-chat');
+  const cls = role==='interviewer' ? 'bubble-interviewer' : 'bubble-candidate';
+  const icon = role==='interviewer' ? 'bi-person-badge' : 'bi-person';
+  chat.innerHTML += `<div class="chat-bubble ${cls} fade-in"><i class="bi ${icon} me-1"></i>${text}</div>`;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+let submitLoading = false;
+async function submitIV() {
+  const answer = document.getElementById('iv-answer').value.trim();
+  if (!answer || !sessionId || submitLoading) return;
+  submitLoading = true;
+  document.getElementById('iv-send-btn').disabled = true;
+  addBubble('candidate', answer);
+  document.getElementById('iv-answer').value = '';
+
+  const r = await post('/api/interview/answer', {session_id:sessionId, user_answer:answer});
+  submitLoading = false;
+  document.getElementById('iv-send-btn').disabled = false;
+  if (!r.ok) { addBubble('interviewer', '(错误: '+r.error+')'); return; }
+
+  addBubble('interviewer', r.question);
+
+  // 评分展示
+  if (r.evaluation) {
+    const ev = r.evaluation;
+    document.getElementById('iv-eval-bar').style.display = 'block';
+    document.getElementById('iv-score-badge').textContent = ev.score + '/5';
+    document.getElementById('iv-score-badge').className = 'badge fs-6 bg-' + (ev.score>=4?'success':ev.score>=3?'primary':ev.score>=2?'warning':'danger');
+    document.getElementById('iv-eval-text').textContent = ev.feedback;
+
+    // 知识库参考
+    const refs = document.getElementById('iv-kb-refs');
+    if (ev.knowledge_base && ev.knowledge_base.length) {
+      refs.innerHTML = `<div class="small fw-bold text-muted mb-1"><i class="bi bi-database"></i> AI 从你的知识库找到了以下内容辅助评分：</div>` +
+        ev.knowledge_base.map(k => `
+          <div class="card kb-ref-card mb-1">
+            <div class="card-body py-1 px-2 d-flex justify-content-between align-items-center">
+              <span class="small"><strong>${k.heading}</strong>: ${k.snippet}</span>
+              <span>
+                <button class="btn btn-sm btn-outline-success py-0" onclick="feedbackKB('${k.chunk_hash}',true,this)"><i class="bi bi-hand-thumbs-up"></i></button>
+                <button class="btn btn-sm btn-outline-danger py-0" onclick="feedbackKB('${k.chunk_hash}',false,this)"><i class="bi bi-hand-thumbs-down"></i></button>
+              </span>
+            </div>
+          </div>
+        `).join('');
+    } else { refs.innerHTML = ''; }
+  }
+}
+
+async function feedbackKB(hash, helpful, btn) {
+  const r = await post('/api/interview/feedback', {session_id:sessionId, chunk_hash:hash, helpful});
+  const pu = r.priority_update || {};
+  const card = btn.closest('.kb-ref-card');
+  const arrow = helpful ? '&uarr;' : '&darr;';
+  const color = helpful ? '#2ecc71' : '#e74c3c';
+  card.insertAdjacentHTML('beforeend',
+    `<div class="priority-change small" style="color:${color}">${arrow} 优先级: ${pu.old_priority||'?'} &rarr; ${pu.new_priority||'?'}</div>`
+  );
+  btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
+}
+
+async function endIV() {
+  if (!sessionId) return;
+  const r = await post(`/api/interview/end/${sessionId}`, {});
+  document.getElementById('iv-setup').style.display = '';
+  document.getElementById('iv-session').style.display = 'none';
+  document.getElementById('iv-eval-bar').style.display = 'none';
+  sessionId = null;
+  ivLoading = false;
+  // 用 modal 展示总结，而不是 alert
+  let endHtml = '';
+  if (r.summary) endHtml += `<div class="alert alert-info"><strong>面试总结:</strong><pre style="white-space:pre-wrap;font-family:inherit">${r.summary}</pre></div>`;
+  if (r.saved_to_kb) endHtml += `<div class="alert alert-success"><i class="bi bi-database-check"></i> 面试信号已自动存入知识库 (优先级4)，下次搜索即可召回面试官的问题</div>`;
+  if (r.stats) endHtml += `<div class="text-muted small">共 ${r.stats.questions} 题，均分 ${r.stats.average_score}/5</div>`;
+  document.getElementById('review-body').innerHTML = endHtml || '<p>面试已结束</p>';
+  new bootstrap.Modal(document.getElementById('reviewModal')).show();
+  loadSessions();
+}
+
+async function loadSessions() {
+  const r = await api('/api/interview/sessions');
+  const el = document.getElementById('iv-sessions');
+  if (!r.sessions || !r.sessions.length) { el.innerHTML = '<tr><td colspan="7" class="text-muted text-center">暂无历史</td></tr>'; return; }
+  // 过滤掉0题的僵尸会话
+  const valid = r.sessions.filter(s => s.questions > 0 || s.finished);
+  if (!valid.length) { el.innerHTML = '<tr><td colspan="7" class="text-muted text-center">暂无历史</td></tr>'; return; }
+  el.innerHTML = valid.map(s => `
+    <tr>
+      <td><span class="badge bg-${s.type==='tech'?'primary':s.type==='behavior'?'info':'success'}">${s.type}</span></td>
+      <td>${s.job_title||'-'}</td>
+      <td>${s.questions}</td>
+      <td><strong>${s.average_score}</strong>/5</td>
+      <td><span class="badge bg-${s.finished?'success':'warning'}">${s.finished?'已结束':'进行中'}</span></td>
+      <td class="small text-muted">${new Date(s.created_at).toLocaleString()}</td>
+      <td>${s.finished ? `<button class="btn btn-sm btn-outline-primary" onclick="viewSession('${s.session_id}')"><i class="bi bi-eye"></i> 复盘</button>` : `<button class="btn btn-sm btn-outline-secondary" onclick="resumeSession('${s.session_id}')"><i class="bi bi-play"></i> 继续</button>`}</td>
+    </tr>
+  `).join('');
+}
+
+async function viewSession(sid) {
+  const r = await api(`/api/interview/session/${sid}`);
+  if (!r.ok) return alert('加载失败');
+  const s = r.session;
+  const msgs = r.messages || [];
+
+  let html = `
+    <div class="d-flex gap-3 mb-3">
+      <div class="metric-card flex-fill card"><div class="value">${s.average_score}</div><div class="label">均分/5</div></div>
+      <div class="metric-card flex-fill card"><div class="value">${s.questions_asked}</div><div class="label">问题数</div></div>
+      <div class="metric-card flex-fill card"><div class="value">${s.type}</div><div class="label">面试类型</div></div>
+    </div>`;
+
+  // 对话记录 + 逐题评分
+  let qIdx = 0;
+  html += '<h6>对话记录与逐题评分</h6>';
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m.role === 'interviewer') {
+      html += `<div class="chat-bubble bubble-interviewer"><i class="bi bi-person-badge me-1"></i><strong>面试官:</strong> ${m.content}</div>`;
+    } else if (m.role === 'candidate') {
+      html += `<div class="chat-bubble bubble-candidate"><i class="bi bi-person me-1"></i><strong>你:</strong> ${m.content}</div>`;
+      // 找对应的评分
+      if (s.scores && s.scores[qIdx]) {
+        const sc = s.scores[qIdx];
+        const scoreColor = sc.score >= 4 ? 'success' : sc.score >= 3 ? 'primary' : sc.score >= 2 ? 'warning' : 'danger';
+        let kbHtml = '';
+        if (sc.kb_refs && sc.kb_refs.length) {
+          kbHtml = `<div class="mt-1"><i class="bi bi-database"></i> <strong>知识库来源:</strong> ` +
+            sc.kb_refs.map(k => `<span class="badge bg-warning text-dark me-1">${k.heading || k.source}</span>`).join('') + '</div>';
+        }
+        html += `<div class="alert alert-light py-2 small">
+          <span class="badge bg-${scoreColor} me-2">${sc.score}/5</span>
+          <strong>优点:</strong> ${sc.strengths || '-'} &nbsp;|&nbsp; <strong>不足:</strong> ${sc.gaps || '-'}
+          ${kbHtml}
+        </div>`;
+        qIdx++;
+      }
+    }
+  }
+
+  // 总结
+  if (s.summary) {
+    html += `<div class="card mt-3"><div class="card-header"><i class="bi bi-clipboard-check"></i> 面试总结</div><div class="card-body"><pre style="white-space:pre-wrap;font-family:inherit">${s.summary}</pre></div></div>`;
+  }
+
+  document.getElementById('review-body').innerHTML = html;
+  new bootstrap.Modal(document.getElementById('reviewModal')).show();
+}
+
+async function resumeSession(sid) {
+  const r = await api(`/api/interview/session/${sid}`);
+  if (!r.ok) return;
+  sessionId = sid;
+  document.getElementById('iv-setup').style.display = 'none';
+  document.getElementById('iv-session').style.display = 'block';
+  document.getElementById('iv-chat').innerHTML = '';
+  (r.messages || []).forEach(m => {
+    addBubble(m.role === 'interviewer' ? 'interviewer' : 'candidate', m.content);
+  });
+}
+
+async function aiGenCards() {
+  const topic = document.getElementById('fc-ai-topic').value;
+  if (!topic) return alert('请输入主题');
+  const el = document.getElementById('fc-ai-result');
+  el.innerHTML = '<div class="d-flex align-items-center gap-2"><div class="spinner-border spinner-border-sm"></div> 搜索知识库 → LLM 生成中...</div>';
+  const r = await post('/api/flashcards/ai-generate', {topic, count:5});
+  if (r.ok) {
+    el.innerHTML = `<div class="alert alert-success py-2 fade-in">
+      <i class="bi bi-check-circle"></i> 从知识库 ${r.kb_sources} 条内容中生成了 <strong>${r.generated}</strong> 张闪卡
+    </div>` + r.cards.map(c => `<div class="small border-start border-3 border-success ps-2 mb-1"><strong>Q:</strong> ${c.question}<br><strong>A:</strong> ${c.answer}</div>`).join('');
+    loadFcStats(); loadDue();
+  } else {
+    el.innerHTML = `<div class="alert alert-danger py-2">${r.error || r.detail || JSON.stringify(r)}</div>`;
+  }
+}
+
+// ── 语音 ───────────────────────────────────────────────
+
+async function transcribe() {
+  const file = document.getElementById('sp-file').files[0];
+  if (!file) return alert('请选择音频文件');
+  document.getElementById('sp-result').innerHTML = '<div class="spinner-border spinner-border-sm"></div> 转写中...';
+  const fd = new FormData(); fd.append('file', file);
+  const r = await api('/api/speech/transcribe', {method:'POST', body:fd});
+  if (r.ok) {
+    document.getElementById('sp-result').innerHTML = `<div class="alert alert-success">${r.transcript}</div>`;
+    document.getElementById('sp-text').value = r.transcript;
+    document.getElementById('sp-save-btn').style.display = '';
+  } else {
+    document.getElementById('sp-result').innerHTML = `<div class="alert alert-danger">${r.error}</div>`;
+  }
+}
+
+async function saveTranscriptToKB() {
+  const text = document.getElementById('sp-text').value;
+  if (!text) return;
+  const r = await post('/api/speech/save-to-kb', {text, interview_type:'tech'});
+  document.getElementById('sp-save-msg').innerHTML = r.ok
+    ? `<div class="alert alert-success py-1 small fade-in"><i class="bi bi-check-circle"></i> ${r.message}</div>`
+    : `<div class="alert alert-danger py-1 small">${r.error||''}</div>`;
+}
+
+async function analyze() {
+  const text = document.getElementById('sp-text').value;
+  if (!text) return alert('请输入内容');
+  document.getElementById('sp-analysis').innerHTML = '<div class="spinner-border spinner-border-sm"></div> 分析中...';
+  const r = await post('/api/speech/analyze', {text, interview_type:'tech'});
+  if (r.ok) {
+    let html = `<div class="alert alert-info"><strong>总结:</strong><br>${r.summary}</div>`;
+    if (r.weak_points && r.weak_points.length)
+      html += `<div class="alert alert-warning"><strong>弱点:</strong><ul>${r.weak_points.map(w=>'<li>'+w+'</li>').join('')}</ul></div>`;
+    if (r.flashcard_drafts && r.flashcard_drafts.length)
+      html += `<div class="alert alert-light"><strong>闪卡草稿:</strong><ul>${r.flashcard_drafts.map(f=>'<li>'+f.question+'</li>').join('')}</ul></div>`;
+    document.getElementById('sp-analysis').innerHTML = html;
+  } else {
+    document.getElementById('sp-analysis').innerHTML = `<div class="alert alert-danger">${r.error||JSON.stringify(r)}</div>`;
+  }
+}
+
+// ── 初始化 ─────────────────────────────────────────────
+listKB(); loadFcStats(); loadSessions();
+</script>
+</body>
+</html>
