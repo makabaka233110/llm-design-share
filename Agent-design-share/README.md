@@ -7,8 +7,9 @@
 需要 macOS / Linux，Python 3.12+ 或 [uv](https://docs.astral.sh/uv/)。
 
 ```bash
-cd Agent-design-share
-bash start.sh          # 首次运行会生成 .env，填好 LLM 配置后再运行一次
+git clone https://github.com/makabaka233110/llm-design-share.git
+cd llm-design-share/Agent-design-share
+bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启即可启用 AI 功能
 ```
 
 打开 http://127.0.0.1:8000 。知识库检索、闪卡复习和语音转写在本地运行；评估、提示、出题和复盘会把相关文本发送到 `.env` 中配置的模型服务。

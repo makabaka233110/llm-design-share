@@ -5,8 +5,7 @@ cd "$(dirname "$0")"
 
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "已创建 .env，请填入 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL 后重新运行 bash start.sh"
-  exit 1
+  echo "已创建 .env。知识库、闪卡、语音转写可直接使用；填入 LLM_API_KEY / LLM_MODEL（及 LLM_BASE_URL）后重启即可启用 AI 功能。"
 fi
 
 if [ ! -d .venv ]; then
