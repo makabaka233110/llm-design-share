@@ -5,6 +5,6 @@ venv/
 .venv/
 __pycache__/
 *.pyc
-data/
+/data/
 eval/results/
 .DS_Store

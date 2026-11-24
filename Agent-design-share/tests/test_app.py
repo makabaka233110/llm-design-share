@@ -185,12 +185,12 @@ def test_claims_concepts_related_gap_practice(c):
         c.post("/api/kb/docs", json={"title": title, "body": body, "reviewed": True})
     q = c.post("/api/questions", json={"text": "为什么 TCP 要三次握手？", "concept": "TCP 握手"}).json()
     r = c.post(f"/api/questions/{q['id']}/attempts",
-               json={"answer": "为了同步双方的序列号。另外 Redis 的 AOF 重写可以压缩日志。"}).json()
+               json={"answer": "为了同步双方的序列号。另外机会成本是放弃的次优选择的价值。"}).json()
     ev = r["evaluation"]["evidence"]
     claimed = [e for e in ev if e["claim"]]
     # E1-E3 come from the question; each claim adds its best passage (if new), labelled with the claim
     assert claimed and all(e["eid"] not in ("E1", "E2", "E3") for e in claimed)
-    assert any("Redis" in e["title"] for e in ev)
+    assert any(e["title"] == "机会成本" and "机会成本" in e["claim"] for e in claimed)
     assert "用于核对" in PROMPTS[-1] and "## 题库中的相关问题" in PROMPTS[-1]
     # concept view: original question and its scenario are grouped, weakest concept first
     groups = {g["concept"]: g for g in c.get("/api/concepts").json()}

@@ -1,11 +1,52 @@
-# 实验数据格式
+# 实验数据
+
+## 数据集 `eval/data/`（proposal §4 规格）
+
+| 内容 | 数量 |
+|---|---|
+| 参考资料 | 200 段（167 段质量好，33 段低质量），3 个领域：computing / business / science |
+| 概念族 | 120 个（40 dev / 80 test），每个领域都有 dev 和 test |
+| 回答 | 240 条，每个概念族一好一坏，其中 test 160 条 |
+| 历史作答 | 12 组 × 3 次（persistent 6、partial 3、corrected 3） |
+| 提示偏好序列 | 12 组，12 种偏好里有 4 种不同类型 |
+
+- **来源**：由 LLM 按教材和官方文档的常识编写，不是人工采集。正式报告时需要组员抽查事实是否准确。
+- **相关性标注**：做了两轮，但都由同一个模型完成，不能算两位独立的标注者，正式实验仍需两位组员复标。
+- **低质量资料**（`quality: low`）：模仿论坛面经、营销号和科普号，用词与题目高度相关，但含一处事实错误，错误记在 `flaw` 字段。`queries.jsonl` 的 `weak` 字段标出每题对应的低质量资料。
+- **难负例**：相邻概念的资料，例如 TCP 握手与挥手、NPV 与 IRR、有丝分裂与减数分裂。
+- **已知偏差**：有缺陷的回答普遍比好回答短 30–40 字，评估实验要留意长度带来的偏差。
+- **不包括**：录音需要真人录制，不在本数据集里。
+
+### 检索实验结果（test 80 题，`--split test`）
+
+| 设置 | Recall@3 | nDCG@3 | weak@3 |
+|---|---|---|---|
+| BM25 | 0.731 | 0.657 | 0.083 |
+| 向量 | 0.819 | 0.742 | 0.083 |
+| hybrid | 0.819 | 0.740 | 0.087 |
+| weighted，quality 反馈 1 轮 | 0.806 | **0.697** | 0.087 |
+| weighted，quality 反馈 3 轮 | 0.775 | **0.594** | 0.075 |
+| weighted，strict 反馈 1 轮 | 0.787 | **0.679** | 0.075 |
+
+weighted 与 hybrid 之差按题做配对 bootstrap，nDCG@3 在 4 种设置下的 95% 置信区间都不含 0。例如 quality 1 轮为 −0.043 [−0.073, −0.016]。不加反馈时 weighted 与 hybrid 完全相同（优先级都是 2）。重建索引带来的噪声约为 ±0.008。
+
+**结论：在这个数据集上，公式 (1) 的加权没有帮助，反而有害。** 原因有两个：
+
+1. **打分对象是资料，不是题目。** 「有用」会让这段资料在所有题里都上升。在 dev 题里有用的资料，往往正是相邻 test 题的难负例。
+2. **混合检索的分数太接近。** RRF 分数只反映排名，前几名之间差距很小，优先级 0.5 的差异（乘数约差 4%）就足以改变前 3 的顺序。
+
+低质量资料大多只与一道题相关，dev 上的反馈碰不到 test 题的低质量资料，所以 weak@3 几乎没有下降。
+
+这一结论受限于数据由 LLM 生成、反馈是模拟的，可作为报告讨论部分的依据。
+
+## 数据格式
 
 每个文件一行一个 JSON 对象。`split` 取 `dev` 或 `test`，同一概念族（`family`）的改写题和情境题必须放在同一个 split。
 
 | 文件 | 字段 | 用于 |
 |---|---|---|
-| `passages.jsonl` | `id, domain, topic, title, text, priority?, reviewed?` | 所有实验的参考库 |
-| `queries.jsonl` | `id, domain, split, question, relevant: [passage id]` | `retrieval` |
+| `passages.jsonl` | `id, domain, topic, title, text, source?, priority?, reviewed?, quality?, flaw?` | 所有实验的参考库 |
+| `queries.jsonl` | `id, domain, split, question, relevant: [passage id], weak?: [低质量 passage id]` | `retrieval` |
 | `cases.jsonl` | `id, family, domain, split, question, concept, answer_type: strong/flawed, answer, notes?` | `evaluator`、`scenarios`（取 strong 行的题目） |
 | `hint_sequences.jsonl` | `id, target_preference, history: [{question, concept, hint, rating, comment}], later: [{id, family, question, concept}]` | `hints` |
 | `histories.jsonl` | `id, family, domain?, label: persistent/partial/corrected, question, concept, attempts: [3 个回答], recurring: [...]` | `history` |
@@ -17,7 +58,7 @@
 - `*_rating.csv`：打乱顺序、隐去实验条件的评分表，两位评分者分别填 `_r1` / `_r2` 列。
 - `*_rating.key.jsonl`：条目与实验条件的对应关系，评分完成前不要打开。
 
-`retrieval` 的优先级来自学习者反馈：脚本先在 dev 查询上模拟反馈（看到加权检索的前 3 条，标注为相关的记「有用」，其余记「没用」），再只在其余查询上比较 4 种检索。test 标签不参与反馈。`--feedback-rounds 0` 关闭模拟；此时若资料也没有预设 `priority`，所有优先级都是 2，加权排序与 hybrid 完全相同。
+`retrieval` 的优先级来自学习者反馈：脚本先在 dev 查询上模拟反馈，再只在其余查询上比较 4 种检索，test 标签不参与反馈。模拟时看加权检索的前 3 条，标注为相关的记「有用」；其余资料的处理由 `--feedback-policy` 决定：`quality`（默认）只对标为低质量的资料记「没用」，`strict` 对所有不相关的资料都记「没用」。`weak@3` 是前 3 条中低质量资料所占的比例。`--feedback-rounds 0` 关闭模拟；此时若资料也没有预设 `priority`，所有优先级都是 2，加权排序与 hybrid 完全相同。
 
 `evaluator` 的盲评子集在运行前由 `balanced_subset()` 按（领域 × 强/弱回答）轮流抽取 40 例，只依赖题目元数据、不看模型输出，抽到的编号写入 `evaluator_subset.txt`。正式实验时把这个文件提交到仓库，之后用 `--subset-file` 固定。
 

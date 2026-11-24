@@ -1,0 +1,120 @@
+{"id": "cmp-f01", "domain": "computing", "split": "dev", "question": "面试官追问：如果把 TCP 建连改成客户端发一次、服务端回一次就算成功，会有什么问题？你会怎么反驳？", "concept": "TCP 三次握手", "relevant": ["cmp-p66", "cmp-p41"], "weak": ["cmp-p63"]}
+{"id": "cmp-f02", "domain": "computing", "split": "test", "question": "一台主动断开大量短连接的 API 服务器上堆了几万个 TIME_WAIT，这个状态是干什么用的？为什么非要等那么久才释放？", "concept": "TCP TIME_WAIT", "relevant": ["cmp-p46", "cmp-p12"], "weak": ["cmp-p15"]}
+{"id": "cmp-f03", "domain": "computing", "split": "test", "question": "要做一个实时语音通话功能，传输层你倾向用 TCP 还是 UDP？请说清楚两者本质差异再给结论。", "concept": "TCP 与 UDP", "relevant": ["cmp-p51"], "weak": []}
+{"id": "cmp-f04", "domain": "computing", "split": "dev", "question": "接收端应用读数据很慢时，TCP 发送端是怎么知道要放慢的？如果对端缓冲区彻底满了，之后又怎么恢复发送？", "concept": "TCP 流量控制", "relevant": ["cmp-p65"], "weak": []}
+{"id": "cmp-f05", "domain": "computing", "split": "test", "question": "一条 TCP 连接刚建立时，发送速率是怎么一步步涨起来的？中途出现丢包，速率又会怎么回退？", "concept": "TCP 拥塞控制", "relevant": ["cmp-p07", "cmp-p27"], "weak": []}
+{"id": "cmp-f06", "domain": "computing", "split": "test", "question": "浏览器和服务器在 HTTPS 建连阶段到底交换了什么？最后加密页面数据用的密钥是怎么来的？", "concept": "HTTPS/TLS 握手", "relevant": ["cmp-p25"], "weak": []}
+{"id": "cmp-f07", "domain": "computing", "split": "test", "question": "都说 HTTP/2 靠多路复用解决了队头阻塞，那为什么在丢包严重的移动网络下，它的优势反而会打折扣？", "concept": "HTTP/2 队头阻塞", "relevant": ["cmp-p45", "cmp-p55"], "weak": ["cmp-p32"]}
+{"id": "cmp-f08", "domain": "computing", "split": "test", "question": "在地址栏输入一个从没访问过的域名，到拿到它的 IP 地址，中间依次问了哪些服务器？", "concept": "DNS 解析", "relevant": ["cmp-p59"], "weak": []}
+{"id": "cmp-f09", "domain": "computing", "split": "dev", "question": "一个多线程服务里某个线程访问了野指针，为什么整个服务都挂了？顺便说说进程和线程各自独占、共享哪些东西。", "concept": "进程与线程", "relevant": ["cmp-p20"], "weak": []}
+{"id": "cmp-f10", "domain": "computing", "split": "test", "question": "两个线程各自拿着一把锁又去等对方那把，系统就卡死了。出现这种情况需要满足哪些前提？写代码时怎么规避？", "concept": "死锁", "relevant": ["cmp-p11"], "weak": []}
+{"id": "cmp-f11", "domain": "computing", "split": "test", "question": "两个进程打印同一个全局变量的地址，结果一模一样，但各改各的互不影响，这是怎么做到的？", "concept": "虚拟内存", "relevant": ["cmp-p10"], "weak": []}
+{"id": "cmp-f12", "domain": "computing", "split": "dev", "question": "物理内存吃紧、必须踢掉一页时，操作系统怎么挑？为什么理论上最好的那种方案没法用？", "concept": "页面置换算法", "relevant": ["cmp-p31"], "weak": []}
+{"id": "cmp-f13", "domain": "computing", "split": "test", "question": "写一个要扛上万长连接的网络服务，为什么大家都选 epoll 而不是 select？用 epoll 的边缘触发模式时要注意什么？", "concept": "IO 多路复用", "relevant": ["cmp-p52", "cmp-p37"], "weak": ["cmp-p28"]}
+{"id": "cmp-f14", "domain": "computing", "split": "test", "question": "Kafka 把磁盘上的日志推给消费者为什么能那么快？传统的先 read 再 write 慢在哪里？", "concept": "零拷贝", "relevant": ["cmp-p64"], "weak": []}
+{"id": "cmp-f15", "domain": "computing", "split": "dev", "question": "InnoDB 为什么用 B+ 树做索引，而不是二叉树或哈希？千万行的表按主键查一条大概要读几次磁盘？", "concept": "B+ 树索引", "relevant": ["cmp-p42", "cmp-p03"], "weak": ["cmp-p14"]}
+{"id": "cmp-f16", "domain": "computing", "split": "test", "question": "有同事建议把订单表的索引改成哈希索引，理由是等值查询更快。你同意吗？什么场景下会吃亏？", "concept": "哈希索引", "relevant": ["cmp-p03", "cmp-p42"], "weak": []}
+{"id": "cmp-f17", "domain": "computing", "split": "test", "question": "RocksDB、HBase 这类存储为什么写入吞吐特别高？它为此付出了什么代价？", "concept": "LSM 树", "relevant": ["cmp-p09"], "weak": []}
+{"id": "cmp-f18", "domain": "computing", "split": "dev", "question": "同一个事务里两次查询同一行，结果却不一样，这叫什么现象？各个隔离级别分别能挡住哪些问题？", "concept": "事务隔离级别", "relevant": ["cmp-p23"], "weak": []}
+{"id": "cmp-f19", "domain": "computing", "split": "test", "question": "在 MySQL 默认隔离级别下，另一个事务已经把某行改完并提交了，为什么我这个事务里用普通 SELECT 读到的还是旧值？", "concept": "MVCC", "relevant": ["cmp-p67", "cmp-p23"], "weak": ["cmp-p21"]}
+{"id": "cmp-f20", "domain": "computing", "split": "test", "question": "MySQL 已经有 binlog 了，InnoDB 为什么还要再搞一个 redo log？提交事务时两份日志怎么保证不出现一份有、一份没有？", "concept": "redo log 与 binlog", "relevant": ["cmp-p29"], "weak": []}
+{"id": "cmp-f21", "domain": "computing", "split": "test", "question": "表上建了 (a,b,c) 联合索引，WHERE b=2 AND c=3 为什么用不上它？如果 a 用的是范围条件又会怎样？", "concept": "联合索引最左前缀", "relevant": ["cmp-p22"], "weak": []}
+{"id": "cmp-f22", "domain": "computing", "split": "dev", "question": "Redis 宕机重启后数据还在吗？两种落盘方式你会怎么取舍？AOF 文件越来越大又怎么办？", "concept": "Redis 持久化", "relevant": ["cmp-p26", "cmp-p08"], "weak": ["cmp-p43"]}
+{"id": "cmp-f23", "domain": "computing", "split": "test", "question": "有人用大量根本不存在的商品 ID 刷接口，缓存一直不命中，数据库被打爆，怎么防？", "concept": "缓存穿透", "relevant": ["cmp-p56"], "weak": ["cmp-p30"]}
+{"id": "cmp-f24", "domain": "computing", "split": "test", "question": "秒杀时某个爆款商品的缓存刚好过期，瞬间几万请求压到数据库上，你怎么处理？这和大批缓存同时失效是一回事吗？", "concept": "缓存击穿与雪崩", "relevant": ["cmp-p57"], "weak": ["cmp-p30"]}
+{"id": "cmp-f25", "domain": "computing", "split": "dev", "question": "修改商品价格时，应该先改数据库还是先动缓存？缓存这一步是更新它还是直接删掉？", "concept": "缓存与数据库一致性", "relevant": ["cmp-p61"], "weak": []}
+{"id": "cmp-f26", "domain": "computing", "split": "test", "question": "Redis 内存用满之后再写入会怎样？如果这个实例纯粹当缓存用，你会怎么配置？", "concept": "Redis 淘汰策略", "relevant": ["cmp-p13"], "weak": []}
+{"id": "cmp-f27", "domain": "computing", "split": "dev", "question": "设计一个服务注册中心时，有同事说“CAP 里我们选 CA”，你怎么回应？", "concept": "CAP 定理", "relevant": ["cmp-p60"], "weak": ["cmp-p05"]}
+{"id": "cmp-f28", "domain": "computing", "split": "test", "question": "Raft 集群里 Leader 挂了，剩下的节点怎么选出新 Leader？会不会选出一个把已提交数据弄丢的 Leader？", "concept": "Raft 选主", "relevant": ["cmp-p17", "cmp-p34"], "weak": []}
+{"id": "cmp-f29", "domain": "computing", "split": "test", "question": "缓存集群从 4 台扩容到 5 台，如果原来用 hash 取模分片，会出什么问题？有没有更好的分片方式？", "concept": "一致性哈希", "relevant": ["cmp-p40"], "weak": []}
+{"id": "cmp-f30", "domain": "computing", "split": "test", "question": "跨库转账想用两阶段提交来保证一致，它的流程是什么？为什么很多团队不愿在线上直接用它？", "concept": "两阶段提交", "relevant": ["cmp-p47"], "weak": []}
+{"id": "cmp-f31", "domain": "computing", "split": "test", "question": "用 Redis 给定时任务加一把分布式锁，防止多台机器重复执行，有哪些常见的坑？", "concept": "Redis 分布式锁", "relevant": ["cmp-p53"], "weak": []}
+{"id": "cmp-f32", "domain": "computing", "split": "dev", "question": "HashMap 里两个 key 落进同一个桶时怎么处理？它又是在什么时机扩容的？", "concept": "哈希表", "relevant": ["cmp-p48"], "weak": []}
+{"id": "cmp-f33", "domain": "computing", "split": "test", "question": "快排平均很快，那它什么情况下会变得很慢？工程上怎么防止？", "concept": "快速排序", "relevant": ["cmp-p62"], "weak": []}
+{"id": "cmp-f34", "domain": "computing", "split": "test", "question": "有 10 亿个整数存在磁盘上，内存只放得下很小一部分，怎么找出其中最大的 100 个？", "concept": "Top K 问题", "relevant": ["cmp-p18", "cmp-p62"], "weak": []}
+{"id": "cmp-f35", "domain": "computing", "split": "test", "question": "Java 的 TreeMap 为什么选红黑树而不是更平衡的 AVL 树？", "concept": "红黑树", "relevant": ["cmp-p44"], "weak": []}
+{"id": "cmp-f36", "domain": "computing", "split": "dev", "question": "电商扣库存，你会用乐观锁还是悲观锁？如果乐观锁直接用 CAS 实现，还要提防什么问题？", "concept": "乐观锁与悲观锁", "relevant": ["cmp-p24", "cmp-p19"], "weak": []}
+{"id": "cmp-f37", "domain": "computing", "split": "test", "question": "用 volatile 修饰一个计数器，多个线程同时 count++，最后结果会对吗？volatile 到底能保证什么？", "concept": "volatile", "relevant": ["cmp-p02"], "weak": ["cmp-p49"]}
+{"id": "cmp-f38", "domain": "computing", "split": "dev", "question": "一个线程池核心线程数 5、最大线程数 10、队列容量 100，第 6 个任务提交进来时会新开线程吗？", "concept": "线程池", "relevant": ["cmp-p04"], "weak": ["cmp-p39"]}
+{"id": "cmp-f39", "domain": "computing", "split": "test", "question": "用互斥锁加条件变量写一个阻塞队列，判断“队列为空”时为什么要用 while 而不能用 if？", "concept": "生产者消费者", "relevant": ["cmp-p06"], "weak": []}
+{"id": "cmp-f40", "domain": "computing", "split": "dev", "question": "消息队列的消费者偶尔会收到重复消息，导致用户被重复扣款，这种问题该怎么设计规避？", "concept": "消息幂等", "relevant": ["cmp-p50"], "weak": []}
+{"id": "bus-f01", "domain": "business", "split": "dev", "question": "小王辞去月薪 1 万元的工作，拿出自己的 20 万元积蓄开了一家奶茶店，第一年账面利润 8 万元。从经济学角度看，他这一年真的赚了吗？", "concept": "机会成本", "relevant": ["bus-p01", "bus-p03"], "weak": ["bus-p02"]}
+{"id": "bus-f02", "domain": "business", "split": "test", "question": "公司已经在一个新产品项目上花了 800 万元研发费，现在预计上市后只能带来 300 万元利润，而完成上市还需要再投入 400 万元。会上有人说“已经花了 800 万，不做完就全浪费了”。你怎么看？", "concept": "沉没成本", "relevant": ["bus-p04", "bus-p06"], "weak": ["bus-p05"]}
+{"id": "bus-f03", "domain": "business", "split": "dev", "question": "一家面包店每天晚上 8 点后还剩不少面包，第二天就不能卖了。店主不愿打折，理由是折扣价低于每个面包的平均成本，“卖一个亏一个”。你会怎么帮他分析？", "concept": "边际分析", "relevant": ["bus-p06", "bus-p04"], "weak": []}
+{"id": "bus-f04", "domain": "business", "split": "test", "question": "某景区门票从 100 元涨到 120 元后，日均游客从 1 万人降到 7000 人。门票收入发生了什么变化？景区接下来应该怎么调价？", "concept": "需求价格弹性", "relevant": ["bus-p08", "bus-p10"], "weak": ["bus-p09"]}
+{"id": "bus-f05", "domain": "business", "split": "test", "question": "经济下行期，某平价快餐连锁的销量逆势上升，而高端餐厅的订单大幅下滑。请用经济学概念解释这一现象，并说说对两类企业经营的启示。", "concept": "需求收入弹性", "relevant": ["bus-p11"], "weak": []}
+{"id": "bus-f06", "domain": "business", "split": "test", "question": "某咖啡连锁把美式咖啡涨价 10% 后，店里可颂面包的销量下降了 5%，而隔壁茶饮店的生意变好了。这两组商品分别是什么关系？可以怎样量化？", "concept": "交叉价格弹性", "relevant": ["bus-p12"], "weak": []}
+{"id": "bus-f07", "domain": "business", "split": "test", "question": "一家生鲜电商从 1 个城市扩张到 30 个城市，单件配送成本先是大幅下降，后来却开始回升。请解释背后的原因。", "concept": "规模经济", "relevant": ["bus-p13"], "weak": []}
+{"id": "bus-f08", "domain": "business", "split": "dev", "question": "博物馆对 60 岁以上老人门票半价、航空公司提前 30 天购票有折扣、视频网站同时卖月卡和年卡，这些做法背后的定价逻辑是什么？企业要做到这一点需要什么条件？", "concept": "价格歧视", "relevant": ["bus-p15"], "weak": []}
+{"id": "bus-f09", "domain": "business", "split": "test", "question": "两家外卖平台都清楚持续发补贴会让双方都亏钱，但谁也不敢先停。用博弈论怎么解释？有什么办法打破这种局面？", "concept": "囚徒困境", "relevant": ["bus-p16"], "weak": []}
+{"id": "bus-f10", "domain": "business", "split": "test", "question": "前几年不少城市涌现大量社区小烘焙店，早期店主都赚得不错，几年后大多数店只能勉强维持，但账面上还略有盈余。请用市场结构理论解释这个过程。", "concept": "完全竞争长期均衡", "relevant": ["bus-p17", "bus-p03"], "weak": []}
+{"id": "bus-f11", "domain": "business", "split": "dev", "question": "上游一家造纸厂排放废水，影响了下游养殖户的收成。如果你是政策顾问，除了直接下令关厂，还有哪些思路？各自适用什么条件？", "concept": "外部性", "relevant": ["bus-p19", "bus-p20"], "weak": []}
+{"id": "bus-f12", "domain": "business", "split": "test", "question": "一款无需体检、人人可买的医疗险上线后，赔付率远高于预期，健康的年轻人越来越不愿意买。问题出在哪里？保险公司可以怎么改？", "concept": "逆向选择", "relevant": ["bus-p21"], "weak": []}
+{"id": "bus-f13", "domain": "business", "split": "dev", "question": "公司考虑花 1000 万元买一条生产线，预计未来 5 年每年带来 260 万元净现金流，公司要求的回报率是 10%。你会怎么判断要不要投？领导说“5 年能收回 1300 万，肯定赚”，你怎么回应？", "concept": "净现值", "relevant": ["bus-p23", "bus-p29"], "weak": ["bus-p25"]}
+{"id": "bus-f14", "domain": "business", "split": "test", "question": "有两个互斥项目：A 投入 100 万元，IRR 为 30%；B 投入 1000 万元，IRR 为 18%。公司资本成本为 10%。同事建议直接选 IRR 更高的 A，你同意吗？", "concept": "内部收益率", "relevant": ["bus-p24", "bus-p23"], "weak": ["bus-p25"]}
+{"id": "bus-f15", "domain": "business", "split": "test", "question": "一家制造企业的老板评估项目只问一句“几年能回本”，3 年以内就做。作为财务分析师，你怎么评价这种做法？有没有折中的改进办法？", "concept": "回收期", "relevant": ["bus-p27", "bus-p28"], "weak": []}
+{"id": "bus-f16", "domain": "business", "split": "dev", "question": "某理财产品宣传“投入 10 万元，10 年后拿回 20 万元”。你怎么快速估算它的年化收益率？如果同期国债年化 4%，它有吸引力吗？", "concept": "货币时间价值", "relevant": ["bus-p29"], "weak": []}
+{"id": "bus-f17", "domain": "business", "split": "test", "question": "一家公司股权市值 600 亿元、负债市值 400 亿元，股东要求回报率 12%，借款利率 6%，所得税率 25%。请估算它的综合资本成本，并说明为什么债务部分要做调整。", "concept": "加权平均资本成本", "relevant": ["bus-p30"], "weak": ["bus-p31"]}
+{"id": "bus-f18", "domain": "business", "split": "test", "question": "一位投资者说：“这家生物科技公司的新药研发风险特别大，所以它股票的预期回报一定很高。”从 CAPM 的角度，你怎么评价这句话？", "concept": "资本资产定价模型", "relevant": ["bus-p32"], "weak": ["bus-p33"]}
+{"id": "bus-f19", "domain": "business", "split": "test", "question": "既然债务利息可以抵税，债务成本通常也低于股权成本，为什么企业不干脆把负债率提到 90% 以上？", "concept": "资本结构", "relevant": ["bus-p34", "bus-p35"], "weak": []}
+{"id": "bus-f20", "domain": "business", "split": "test", "question": "做 DCF 估值时，为什么折现的是自由现金流而不是净利润？请以一家每年大量购置设备、应收账款不断增加的公司为例说明。", "concept": "自由现金流", "relevant": ["bus-p37", "bus-p41"], "weak": []}
+{"id": "bus-f21", "domain": "business", "split": "test", "question": "两家公司今年收入都增长了 10%，A 公司营业利润增长了 35%，B 公司只增长了 12%。不考虑资本结构，可能是什么原因？如果明年经济下行，这意味着什么？", "concept": "经营杠杆", "relevant": ["bus-p38"], "weak": []}
+{"id": "bus-f22", "domain": "business", "split": "dev", "question": "假设公司今年多计提了 100 万元设备折旧，所得税率 25%，其他条件不变。请依次说明利润表、现金流量表和资产负债表会怎样变化。", "concept": "三张报表勾稽", "relevant": ["bus-p40"], "weak": []}
+{"id": "bus-f23", "domain": "business", "split": "test", "question": "一家装修公司 12 月完成了一单 50 万元的工程，客户约定次年 3 月付款；同月还预收了另一位客户 20 万元定金，工程次年才开工。这两笔在 12 月的利润表上该怎么处理？为什么利润和现金会对不上？", "concept": "权责发生制", "relevant": ["bus-p41"], "weak": []}
+{"id": "bus-f24", "domain": "business", "split": "dev", "question": "两家同行业公司的 ROE 都是 20%，A 的净利率为 10%，B 的净利率只有 4%。作为分析师，你会怎样进一步拆解，看出两家公司的差别和潜在风险？", "concept": "杜邦分析", "relevant": ["bus-p42"], "weak": ["bus-p43"]}
+{"id": "bus-f25", "domain": "business", "split": "test", "question": "一家连锁超市存货周转约 30 天，几乎没有应收账款，而供应商给它 60 天账期。为什么它利润率很低却不太缺现金？", "concept": "现金转换周期", "relevant": ["bus-p44"], "weak": []}
+{"id": "bus-f26", "domain": "business", "split": "test", "question": "你开了一家小咖啡馆，每杯售价 25 元，咖啡豆、牛奶和杯子等成本 8 元，每月房租和人工共 5.1 万元。每月至少要卖多少杯才不亏？如果想每月赚 1.7 万元呢？", "concept": "盈亏平衡分析", "relevant": ["bus-p46"], "weak": []}
+{"id": "bus-f27", "domain": "business", "split": "dev", "question": "一个新的国产运动鞋品牌想进入竞争激烈的跑鞋市场，资源有限。在制定具体的营销计划之前，你建议它先想清楚哪些问题？请给出思考框架。", "concept": "STP", "relevant": ["bus-p47"], "weak": []}
+{"id": "bus-f28", "domain": "business", "split": "test", "question": "某国产护肤品牌主打“成分安全的高端敏感肌护理”，但电商渠道长期“买一送三”，在折扣店也随处可见。你会如何从营销组合的角度诊断它的问题？", "concept": "营销组合", "relevant": ["bus-p48"], "weak": []}
+{"id": "bus-f29", "domain": "business", "split": "test", "question": "某在线健身 App 每获取一个付费用户要花 300 元，用户每月贡献毛利 30 元，月留存率 80%。投资人问你这个获客成本是否合理，你会怎么算、怎么回答？", "concept": "顾客终身价值", "relevant": ["bus-p49"], "weak": []}
+{"id": "bus-f30", "domain": "business", "split": "test", "question": "一家公司推出一款技术领先、暂无竞品的折叠屏手机；另一家公司推出一款与对手功能相近的共享充电宝服务。两者上市时的定价思路应有什么不同？", "concept": "新产品定价", "relevant": ["bus-p50"], "weak": []}
+{"id": "bus-f31", "domain": "business", "split": "dev", "question": "如果让你评估某个城市的网约车行业是否值得进入，你会怎样系统地分析这个行业的利润空间？", "concept": "波特五力", "relevant": ["bus-p51"], "weak": ["bus-p52"]}
+{"id": "bus-f32", "domain": "business", "split": "test", "question": "一家传统线下书店做了一份 SWOT，只是列了四张清单，领导觉得“没什么用”。你会怎么改进这份分析，让它真正指导决策？", "concept": "SWOT", "relevant": ["bus-p53"], "weak": []}
+{"id": "bus-f33", "domain": "business", "split": "test", "question": "某集团旗下有一个市场份额领先、但所在行业已基本不增长的方便面业务，还有一个份额很小但行业增长很快的预制菜业务。集团资金有限，你会怎样配置资源？", "concept": "BCG 矩阵", "relevant": ["bus-p55"], "weak": ["bus-p56"]}
+{"id": "bus-f34", "domain": "business", "split": "test", "question": "一家做线下少儿英语培训的公司想要增长，考虑了四个方向：在现有城市多开校区、把课程带到三四线城市、给现有学员推出编程课、进军成人健身。你会如何归类并比较它们的风险？", "concept": "安索夫矩阵", "relevant": ["bus-p57"], "weak": []}
+{"id": "bus-f35", "domain": "business", "split": "dev", "question": "一家服装品牌想弄清楚自己的竞争优势到底来自哪里，以及哪些环节可以外包。你会建议用什么工具，具体怎么做？", "concept": "价值链", "relevant": ["bus-p58"], "weak": []}
+{"id": "bus-f36", "domain": "business", "split": "test", "question": "某公司去年给全员涨薪 15%，员工满意度短暂上升后很快回落，离职率也没降。HR 总监很困惑，你怎么解释？还能做些什么？", "concept": "双因素理论", "relevant": ["bus-p59"], "weak": ["bus-p60"]}
+{"id": "bus-f37", "domain": "business", "split": "dev", "question": "一位新上任的事业部总经理，要带领一个习惯按 KPI 拿奖金、做事按部就班的团队完成数字化转型。你认为他应该采用什么样的领导方式？", "concept": "领导理论", "relevant": ["bus-p62"], "weak": []}
+{"id": "bus-f38", "domain": "business", "split": "test", "question": "某创业公司的高管团队关系非常融洽，CEO 提出的大规模扩张计划在会上几乎没人反对就通过了，一年后公司现金流断裂。复盘时你认为决策过程出了什么问题？以后怎么避免？", "concept": "群体思维", "relevant": ["bus-p63"], "weak": []}
+{"id": "bus-f39", "domain": "business", "split": "dev", "question": "你是一个初创团队的产品经理，想做一款帮宠物主人预约上门喂猫的 App，团队只有两个工程师和一个月时间。你会怎么规划第一版？", "concept": "最小可行产品", "relevant": ["bus-p64"], "weak": ["bus-p65"]}
+{"id": "bus-f40", "domain": "business", "split": "test", "question": "某社区 App 投放广告后，日活在两个月内翻了一倍，老板很高兴，但你作为产品经理有些担心。你会看哪些数据来判断这轮增长是否健康？", "concept": "增长指标", "relevant": ["bus-p66"], "weak": []}
+{"id": "sci-f01", "domain": "science", "split": "dev", "question": "公交车突然刹车时，站着的乘客为什么会往前倒？要是车突然启动又会怎样？", "concept": "惯性", "relevant": ["sci-p66"], "weak": ["sci-p41"]}
+{"id": "sci-f02", "domain": "science", "split": "test", "question": "在月球上，宇航员同时松手让一把锤子和一根羽毛从同样高度落下，会看到什么？为什么在地球上做结果不一样？", "concept": "自由落体", "relevant": ["sci-p12", "sci-p46"], "weak": ["sci-p51"]}
+{"id": "sci-f03", "domain": "science", "split": "test", "question": "有人说“物体某一时刻速度为零，那它这一刻的加速度也一定为零”，你怎么看？请举个例子。", "concept": "加速度", "relevant": ["sci-p65"], "weak": []}
+{"id": "sci-f04", "domain": "science", "split": "dev", "question": "拔河比赛时，甲队拉乙队的力和乙队拉甲队的力大小一样，那为什么还会分出输赢？", "concept": "牛顿第三定律", "relevant": ["sci-p27"], "weak": []}
+{"id": "sci-f05", "domain": "science", "split": "test", "question": "开枪射击时为什么枪托要紧紧抵住肩膀？用物理原理解释一下“后坐”。", "concept": "动量守恒", "relevant": ["sci-p25", "sci-p45"], "weak": []}
+{"id": "sci-f06", "domain": "science", "split": "test", "question": "过山车的第二个坡为什么通常都比第一个坡低？如果完全没有摩擦，它最高能冲到多高？", "concept": "机械能守恒", "relevant": ["sci-p59"], "weak": []}
+{"id": "sci-f07", "domain": "science", "split": "dev", "question": "停在一根高压线上的小鸟为什么不会被电到？如果它的翅膀同时碰到相邻两根线，会怎样？", "concept": "电压与电流", "relevant": ["sci-p20"], "weak": ["sci-p11"]}
+{"id": "sci-f08", "domain": "science", "split": "test", "question": "为什么家里关掉电视，冰箱和电灯还能照常工作？如果把家用电器都改成串联，会出现什么问题？", "concept": "串联与并联", "relevant": ["sci-p10"], "weak": []}
+{"id": "sci-f09", "domain": "science", "split": "test", "question": "把一块条形磁铁插进线圈后就停住不动，接在线圈上的电流表会一直有读数吗？怎么做才能让指针偏转得更大？", "concept": "电磁感应", "relevant": ["sci-p52"], "weak": []}
+{"id": "sci-f10", "domain": "science", "split": "dev", "question": "站在岸边用鱼叉叉鱼，为什么要对准看到的鱼的下方，而不是直接瞄准看到的那条鱼？", "concept": "光的折射", "relevant": ["sci-p37"], "weak": []}
+{"id": "sci-f11", "domain": "science", "split": "test", "question": "光纤可以弯来弯去，光为什么还能从一头传到另一头？对内芯和外层材料有什么要求？", "concept": "全反射", "relevant": ["sci-p64", "sci-p42"], "weak": []}
+{"id": "sci-f12", "domain": "science", "split": "test", "question": "冬天早上，同一个阳台上的铁栏杆和木扶手，哪个温度更低？为什么手摸铁栏杆感觉冷得多？", "concept": "热传导", "relevant": ["sci-p09"], "weak": []}
+{"id": "sci-f13", "domain": "science", "split": "dev", "question": "为什么新疆有“早穿皮袄午穿纱”的说法，而海边城市的昼夜温差小得多？", "concept": "比热容", "relevant": ["sci-p67"], "weak": []}
+{"id": "sci-f14", "domain": "science", "split": "test", "question": "站在铁路边听火车鸣笛驶过，音调为什么会由高突然变低？火车司机自己听到的音调有变化吗？", "concept": "多普勒效应", "relevant": ["sci-p29"], "weak": []}
+{"id": "sci-f15", "domain": "science", "split": "test", "question": "洗衣机脱水时，水是怎么从衣服里被“甩”出去的？水滴离开甩干桶时大致朝哪个方向飞？", "concept": "圆周运动", "relevant": ["sci-p22"], "weak": ["sci-p26"]}
+{"id": "sci-f16", "domain": "science", "split": "dev", "question": "食盐晶体本身不导电，可它的水溶液和熔化后的液体都能导电，这说明了什么？", "concept": "离子键", "relevant": ["sci-p08"], "weak": []}
+{"id": "sci-f17", "domain": "science", "split": "test", "question": "氢气分子里的化学键和氯化氢分子里的化学键都叫共价键，两者有什么不同？HCl 为什么不算离子化合物？", "concept": "共价键", "relevant": ["sci-p56", "sci-p08"], "weak": []}
+{"id": "sci-f18", "domain": "science", "split": "test", "question": "一杯pH=3的溶液和一杯pH=5的溶液，酸性相差多少？把pH=5的盐酸稀释1000倍，pH会变成8吗？", "concept": "pH", "relevant": ["sci-p57", "sci-p61"], "weak": []}
+{"id": "sci-f19", "domain": "science", "split": "dev", "question": "铁钉在潮湿空气里生锈，这个过程中谁被氧化、谁是氧化剂？你是怎么判断的？", "concept": "氧化还原", "relevant": ["sci-p13"], "weak": []}
+{"id": "sci-f20", "domain": "science", "split": "test", "question": "工厂给一个可逆反应换了高效催化剂，工程师说“平衡时的产量上限不会变，只是更快达到”，这话对吗？为什么？", "concept": "催化剂", "relevant": ["sci-p60"], "weak": ["sci-p17"]}
+{"id": "sci-f21", "domain": "science", "split": "test", "question": "合成氨工厂为什么要在高压下生产？这个反应是放热的，为什么不干脆用很低的温度？", "concept": "化学平衡", "relevant": ["sci-p34"], "weak": ["sci-p17"]}
+{"id": "sci-f22", "domain": "science", "split": "dev", "question": "一小口水大约18克，里面大概有多少个水分子？说说你的计算思路。", "concept": "物质的量", "relevant": ["sci-p40"], "weak": []}
+{"id": "sci-f23", "domain": "science", "split": "test", "question": "考古上用碳-14测年。碳-14和普通的碳-12在化学反应里表现几乎一样，这是为什么？它们又差在哪里？", "concept": "同位素", "relevant": ["sci-p47", "sci-p19"], "weak": []}
+{"id": "sci-f24", "domain": "science", "split": "test", "question": "木炭燃烧明明是放热反应，为什么木炭放在空气里不会自己烧起来，非得先点火？", "concept": "活化能", "relevant": ["sci-p48"], "weak": []}
+{"id": "sci-f25", "domain": "science", "split": "dev", "question": "手上划破的伤口愈合时，新长出来的皮肤细胞是怎么来的？它们的染色体和原来的细胞一样吗？", "concept": "有丝分裂", "relevant": ["sci-p62"], "weak": []}
+{"id": "sci-f26", "domain": "science", "split": "test", "question": "同一对父母生的兄弟姐妹（不是同卵双胞胎）长相各不相同，从细胞分裂的角度怎么解释？", "concept": "减数分裂", "relevant": ["sci-p18"], "weak": []}
+{"id": "sci-f27", "domain": "science", "split": "test", "question": "植物光合作用放出的氧气，到底来自吸进去的二氧化碳还是来自水？科学家是怎么确定的？", "concept": "光合作用", "relevant": ["sci-p24", "sci-p19"], "weak": ["sci-p02"]}
+{"id": "sci-f28", "domain": "science", "split": "dev", "question": "百米冲刺后腿部肌肉发酸，这时肌肉细胞的能量供应发生了什么变化？和酵母菌发面有什么异同？", "concept": "细胞呼吸", "relevant": ["sci-p04"], "weak": []}
+{"id": "sci-f29", "domain": "science", "split": "test", "question": "从一段基因到一条蛋白质要经过哪两步？这两步分别在细胞的什么地方进行、以什么作模板？", "concept": "基因表达", "relevant": ["sci-p06"], "weak": []}
+{"id": "sci-f30", "domain": "science", "split": "test", "question": "人发高烧时常常没胃口、消化不好，从酶的角度解释一下。另外，为什么冰箱里低温保存的酶制剂拿出来还能用？", "concept": "酶", "relevant": ["sci-p50"], "weak": []}
+{"id": "sci-f31", "domain": "science", "split": "dev", "question": "有人说“抗生素用多了，细菌就学会了抗药”，用进化理论应该怎么评价这句话？", "concept": "自然选择", "relevant": ["sci-p38", "sci-p58"], "weak": ["sci-p55"]}
+{"id": "sci-f32", "domain": "science", "split": "test", "question": "黄瓜片撒上盐，过一会儿盘子里就渗出不少水，黄瓜也变软了，这是为什么？", "concept": "渗透作用", "relevant": ["sci-p36"], "weak": []}
+{"id": "sci-f33", "domain": "science", "split": "test", "question": "为什么有些疫苗要打第二针甚至第三针？打了流感疫苗能不能顺便防新冠？", "concept": "免疫", "relevant": ["sci-p01", "sci-p33"], "weak": []}
+{"id": "sci-f34", "domain": "science", "split": "dev", "question": "父母都是双眼皮，孩子却是单眼皮，这说明亲子关系有问题吗？请按教材中“双眼皮为显性”的简化模型解释。", "concept": "遗传规律", "relevant": ["sci-p54"], "weak": []}
+{"id": "sci-f35", "domain": "science", "split": "test", "question": "澳大利亚人过圣诞节时正是夏天。如果四季只是由地球离太阳的远近决定的，能解释这个现象吗？四季到底是怎么形成的？", "concept": "四季成因", "relevant": ["sci-p35", "sci-p16"], "weak": ["sci-p63"]}
+{"id": "sci-f36", "domain": "science", "split": "test", "question": "日本为什么地震和火山特别多？而我国东部的华北平原、长江中下游平原相对少很多？", "concept": "板块构造", "relevant": ["sci-p15"], "weak": []}
+{"id": "sci-f37", "domain": "science", "split": "dev", "question": "都说二氧化碳多了地球会变暖，可二氧化碳自己又不发热，它是怎么让地球“保温”的？", "concept": "温室效应", "relevant": ["sci-p32"], "weak": ["sci-p14"]}
+{"id": "sci-f38", "domain": "science", "split": "test", "question": "有研究发现喝咖啡多的人得肺癌的比例更高，能不能据此得出“喝咖啡导致肺癌”？如果要判断，应该怎么做？", "concept": "相关与因果", "relevant": ["sci-p21", "sci-p43"], "weak": ["sci-p30"]}
+{"id": "sci-f39", "domain": "science", "split": "dev", "question": "一篇论文报告新药组和安慰剂组差异的p值是0.03，有同学说“这说明新药无效的可能性只有3%”，你同意吗？", "concept": "p值", "relevant": ["sci-p05"], "weak": ["sci-p49"]}
+{"id": "sci-f40", "domain": "science", "split": "test", "question": "要验证一种新肥料能不能让番茄增产，你会怎么设计实验？为什么不能只给一块地施肥，然后看看产量高不高？", "concept": "对照实验", "relevant": ["sci-p39", "sci-p43"], "weak": []}

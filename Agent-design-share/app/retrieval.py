@@ -8,6 +8,7 @@ gets it (the old code parsed it from chunk text, which only the header chunk had
 """
 
 import asyncio
+import json
 import re
 from pathlib import Path
 
@@ -33,19 +34,31 @@ def mem():
     return _mem
 
 
+# Function and question words carry no topic. Without this filter, colloquial forum posts ("为什么……？") outranked
+# textbook passages on BM25 just by sharing them with the question.
+STOP_WORDS = sorted(set("""的 了 是 在 和 与 及 或 也 都 就 而 但 并 被 把 对 为 从 向 以 于 之 其 这 那 这是 那是 这个 那个 这些 那些
+一个 一种 有 没有 会 能 能否 可以 可能 要 应该 应当 需要 我 你 他 她 它 我们 你们 他们 它们 自己 什么 为什么 怎么 怎样 怎么样
+如何 哪些 哪个 哪里 哪 多少 吗 呢 吧 啊 呀 么 时 时候 中 上 下 里 又 还 很 更 最 太 如果 因为 所以 因此 是否 不 不是 一样 几乎
+比如 例如 还是 或者 并且 而且 然后 那么 就是 只是 一下 请 说 讲 谈谈 说说 简述 解释 区别 有何 有什么""".split()))
+ANALYZER = {"tokenizer": "jieba", "filter": ["removepunct", {"type": "stop", "stop_words": STOP_WORDS}]}
+
+
 def _create_collection(store, dim: int) -> None:
     """Memsearch's schema, but BM25 tokenises with jieba: the default `standard`
     analyzer does not segment Chinese, so Chinese queries got no BM25 matches at all."""
     from pymilvus import DataType, Function, FunctionType
     store._connect(create_local_storage=True)
     client = store._connected_client()
+    stamp, want = db.DATA_DIR / "milvus.analyzer", json.dumps(ANALYZER, sort_keys=True, ensure_ascii=False)
     if client.has_collection(store._collection):
-        return
+        if stamp.exists() and stamp.read_text(encoding="utf-8") == want:
+            return
+        client.drop_collection(store._collection)  # analyzer changed: rebuilt from data/kb/*.md by the startup reindex
+    stamp.write_text(want, encoding="utf-8")
     s = client.create_schema(enable_dynamic_field=True)
     s.add_field("chunk_hash", DataType.VARCHAR, max_length=64, is_primary=True)
     s.add_field("embedding", DataType.FLOAT_VECTOR, dim=dim)
-    s.add_field("content", DataType.VARCHAR, max_length=65535, enable_analyzer=True,
-                analyzer_params={"tokenizer": "jieba"})
+    s.add_field("content", DataType.VARCHAR, max_length=65535, enable_analyzer=True, analyzer_params=ANALYZER)
     s.add_field("sparse_vector", DataType.SPARSE_FLOAT_VECTOR)
     for f in ("source", "heading"):
         s.add_field(f, DataType.VARCHAR, max_length=1024)
@@ -121,6 +134,9 @@ def apply_feedback(doc: dict, helpful: bool) -> float:
 
 # ── search ──────────────────────────────────────────────────────────────
 
+CANDIDATES = 40  # shared candidate pool for hybrid and weighted (proposal §3: "retrieve a larger pool")
+
+
 def _search(mode: str, query: str, vec, limit: int, expr: str) -> list[dict]:
     from pymilvus import AnnSearchRequest, RRFRanker
     store = mem().store
@@ -169,7 +185,9 @@ async def retrieve(user: str, query: str, k: int = 3, mode: str = "weighted", *,
     expr = "source in [" + ",".join(f'"{s}"' for s in docs) + "]"
     vec = None if mode == "bm25" else (await mem()._embedder.embed([query]))[0]
 
-    pool = k
+    # hybrid and weighted fuse the same candidate pool, so the only difference between them is the priority boost
+    # (RRF results depend on how many candidates each sub-search returns)
+    pool = max(k, CANDIDATES) if mode in ("hybrid", "weighted") else k
     while True:
         hits = await asyncio.to_thread(_search, mode, query, vec, pool, expr)
         for h in hits:

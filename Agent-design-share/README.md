@@ -71,6 +71,8 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 - 面试总结、录音转写原来以优先级 4 写进知识库，下一次又被当作评分证据。现在它们写入学习记录库。
 - JSON 解析失败时原来会编造 3 分，现在返回 `unavailable`。
 - Milvus 默认的 `standard` 分词器不切中文，BM25 对中文查询基本没有命中。现在用 jieba 建索引。另外 Milvus Lite 返回的 BM25 距离是负数，原代码直接按它排序，顺序是反的，现已修正。
+- BM25 原来不过滤虚词：「为什么」「这是」这类词在课本式资料里很少出现，IDF 反而很高，口语化的论坛面经凭虚词排到了前面。现在加了中文停用词和标点过滤，在 `eval/data` 的 80 道 test 题上，BM25 的 Recall@3 从 0.656 提到 0.731。分词配置变化时，索引会自动重建。
+- hybrid 和 weighted 原来使用的候选池大小不同（RRF 的融合结果取决于候选数），所以两者的差别不只是优先级。现在两者共用 40 条候选，不加反馈时结果完全相同。
 - Memsearch 原来使用全局默认库 `~/.memsearch/milvus.db`，现在改为项目内的 `data/milvus.db`。
 - 前端原来把 LLM 输出直接插入 HTML，存在 XSS 风险。现在所有动态内容都会转义。
 
@@ -93,7 +95,7 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 .venv/bin/python eval/run.py stats eval/results/evaluator_rating.csv --metric usefulness --a none --b weighted
 ```
 
-数据格式和标注指南见 `eval/README.md`。`eval/sample/` 只是演示格式的小样例（12 段资料、10 个查询），不是正式数据集。
+数据集、检索实验结果、数据格式和标注指南见 `eval/README.md`。`eval/data/` 是按 proposal §4 规格构建的数据集（200 段资料、120 个概念族）；`eval/sample/` 只是演示格式的小样例。
 
 ## 测试
 

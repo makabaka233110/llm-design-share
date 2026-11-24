@@ -89,18 +89,20 @@ async def cmd_retrieval(a):
     dev = [q for q in allq if q.get("split") == "dev"]
     queries = [q for q in split(allq, a.split) if not (dev and a.feedback_rounds and q.get("split") == "dev")]
     if a.feedback_rounds and dev:
-        # Priorities come from learner feedback (proposal §3). Simulate it on dev queries only: the learner sees the
-        # weighted top-k and marks each passage useful if it is labelled relevant, otherwise not useful.
-        # Test labels are never used, and dev queries are excluded from scoring.
+        # Priorities come from learner feedback (proposal §3). Simulated on dev queries only (test labels are never
+        # used; dev queries are excluded from scoring). The learner sees the weighted top-k and clicks:
+        #   strict:  relevant -> useful, everything else -> not useful
+        #   quality: relevant -> useful, labelled low-quality ("weak") -> not useful, merely off-topic -> no click
         from app import db
         doc_of = {v: k for k, v in pid.items()}
         for _ in range(a.feedback_rounds):
             for q in dev:
                 hits = await retrieval.retrieve(USER, q["question"], a.k * 4, "weighted")
                 for p in list(dict.fromkeys(pid[h["doc_id"]] for h in hits))[:a.k]:
-                    retrieval.apply_feedback(db.row("SELECT * FROM docs WHERE id=?", doc_of[p]), p in q["relevant"])
+                    if a.feedback_policy == "strict" or p in q["relevant"] or p in q.get("weak", []):
+                        retrieval.apply_feedback(db.row("SELECT * FROM docs WHERE id=?", doc_of[p]), p in q["relevant"])
         pr = [d["priority"] for d in db.rows("SELECT priority FROM docs")]
-        print(f"feedback replay: {len(dev)} dev queries x {a.feedback_rounds} round(s); priorities "
+        print(f"feedback replay ({a.feedback_policy}): {len(dev)} dev queries x {a.feedback_rounds} round(s); priorities "
               f"min={min(pr)} max={max(pr)} changed={sum(p != retrieval.P_DEFAULT for p in pr)}/{len(pr)}; "
               f"scoring {len(queries)} non-dev queries")
     elif not any(p.get("priority") is not None for p in jl(a.data / "passages.jsonl")):
@@ -114,17 +116,20 @@ async def cmd_retrieval(a):
             ranked = list(dict.fromkeys(pid[h["doc_id"]] for h in hits))[:a.k]
             rel = set(q["relevant"])
             r = {"mode": mode, "query": q["id"], "domain": q.get("domain", ""), "ms": ms,
-                 "recall": len(rel & set(ranked)) / len(rel), "ndcg": ndcg(ranked, rel, a.k), "ranked": ranked}
+                 "recall": len(rel & set(ranked)) / len(rel), "ndcg": ndcg(ranked, rel, a.k),
+                 "weak": len(set(q.get("weak", [])) & set(ranked)) / a.k, "ranked": ranked}
             rows.append(r)
             for key in ("all", r["domain"]):
-                for m in ("recall", "ndcg", "ms"):
+                for m in ("recall", "ndcg", "weak", "ms"):
                     per[(mode, key)][m].append(r[m])
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / "retrieval_runs.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows))
-    print(f"{'mode':<9} {'domain':<12} {'n':>3} {'Recall@'+str(a.k):>9} {'nDCG@'+str(a.k):>8} {'ms':>7}")
+    # weak@k: share of the top-k slots taken by on-topic low-quality passages (what priority is meant to push down)
+    print(f"{'mode':<9} {'domain':<12} {'n':>3} {'Recall@'+str(a.k):>9} {'nDCG@'+str(a.k):>8} {'weak@'+str(a.k):>7} {'ms':>7}")
     for (mode, dom), m in sorted(per.items()):
         n = len(m["recall"])
-        print(f"{mode:<9} {dom:<12} {n:>3} {sum(m['recall'])/n:>9.3f} {sum(m['ndcg'])/n:>8.3f} {sum(m['ms'])/n:>7.1f}")
+        print(f"{mode:<9} {dom:<12} {n:>3} {sum(m['recall'])/n:>9.3f} {sum(m['ndcg'])/n:>8.3f} "
+              f"{sum(m['weak'])/n:>7.3f} {sum(m['ms'])/n:>7.1f}")
 
 
 # ── shared helpers for LLM experiments ──────────────────────────────────
@@ -339,9 +344,8 @@ async def cmd_scenarios(a):
     from app import agent, llm, retrieval
     await load_passages(a.data)
     items, stats = [], defaultdict(int)
-    for q0 in split(jl(a.data / "cases.jsonl"), a.split):
-        if q0["answer_type"] != "strong":
-            continue
+    strong = [c for c in split(jl(a.data / "cases.jsonl"), a.split) if c["answer_type"] == "strong"]
+    for q0 in balanced_subset(strong, a.n):  # proposal: 20 held-out questions, balanced across domains
         parent = add_question(q0)
         passages = await retrieval.evidence(USER, f"{parent['text']} {parent['concept']}")
         for v in range(2):
@@ -528,6 +532,9 @@ def main():
         s.add_argument("--n", type=int, default=20, help="cards: number of cards to generate")
         s.add_argument("--feedback-rounds", type=int, default=1,
                        help="retrieval: rounds of simulated useful/not-useful feedback on dev queries (0 = off)")
+        s.add_argument("--feedback-policy", choices=("strict", "quality"), default="quality",
+                       help="retrieval: strict = every non-relevant passage is 'not useful'; "
+                            "quality = only labelled low-quality passages are")
     s = sub.add_parser("stats")
     s.add_argument("sheet")
     s.add_argument("--metric")
