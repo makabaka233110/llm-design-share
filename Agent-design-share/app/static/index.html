@@ -37,7 +37,7 @@ body { background: #f0f2f5; }
 <nav class="navbar navbar-expand navbar-dark" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
   <div class="container">
     <span class="navbar-brand"><i class="bi bi-shield-check"></i> 面壁</span>
-    <span class="text-white-50 small">Milvus 向量检索 · SM-2 间隔重复算法 · LLM 智能评分</span>
+    <span class="text-white-50 small">Milvus 向量检索 · 1/3/7 天间隔复习 · LLM 智能评分</span>
   </div>
 </nav>
 
@@ -274,7 +274,7 @@ body { background: #f0f2f5; }
 </div><!-- container -->
 
 <footer class="text-center text-muted py-4 small">
-  面壁 &middot; Milvus 向量检索 + BM25 + RRF 混合搜索 &middot; SM-2 间隔重复算法 &middot; LLM 知识库辅助评分 &middot; ONNX 本地推理
+  面壁 &middot; Milvus 向量检索 + BM25 + RRF 混合搜索 &middot; 1/3/7 天间隔复习 &middot; LLM 知识库辅助评分 &middot; ONNX 本地推理
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -486,6 +486,16 @@ async function rateCard(id, rating, btn) {
 let sessionId = null;
 
 let ivLoading = false;
+
+function interviewScoreLabel(score) {
+  return typeof score === 'number' && score >= 1 && score <= 5 ? `${score}/5` : '无法评估';
+}
+
+function interviewScoreColor(score) {
+  if (interviewScoreLabel(score) === '无法评估') return 'secondary';
+  return score >= 4 ? 'success' : score >= 3 ? 'primary' : score >= 2 ? 'warning' : 'danger';
+}
+
 async function startIV() {
   if (ivLoading) return;
   ivLoading = true;
@@ -530,8 +540,9 @@ async function submitIV() {
   if (r.evaluation) {
     const ev = r.evaluation;
     document.getElementById('iv-eval-bar').style.display = 'block';
-    document.getElementById('iv-score-badge').textContent = ev.score + '/5';
-    document.getElementById('iv-score-badge').className = 'badge fs-6 bg-' + (ev.score>=4?'success':ev.score>=3?'primary':ev.score>=2?'warning':'danger');
+    const badge = document.getElementById('iv-score-badge');
+    badge.textContent = interviewScoreLabel(ev.score);
+    badge.className = 'badge fs-6 bg-' + interviewScoreColor(ev.score);
     document.getElementById('iv-eval-text').textContent = ev.feedback;
 
     // 知识库参考
@@ -577,7 +588,7 @@ async function endIV() {
   let endHtml = '';
   if (r.summary) endHtml += `<div class="alert alert-info"><strong>面试总结:</strong><pre style="white-space:pre-wrap;font-family:inherit">${r.summary}</pre></div>`;
   if (r.saved_to_kb) endHtml += `<div class="alert alert-success"><i class="bi bi-database-check"></i> 面试信号已自动存入知识库 (优先级4)，下次搜索即可召回面试官的问题</div>`;
-  if (r.stats) endHtml += `<div class="text-muted small">共 ${r.stats.questions} 题，均分 ${r.stats.average_score}/5</div>`;
+  if (r.stats) endHtml += `<div class="text-muted small">共 ${r.stats.questions} 题，均分 ${interviewScoreLabel(r.stats.average_score)}</div>`;
   document.getElementById('review-body').innerHTML = endHtml || '<p>面试已结束</p>';
   new bootstrap.Modal(document.getElementById('reviewModal')).show();
   loadSessions();
@@ -595,7 +606,7 @@ async function loadSessions() {
       <td><span class="badge bg-${s.type==='tech'?'primary':s.type==='behavior'?'info':'success'}">${s.type}</span></td>
       <td>${s.job_title||'-'}</td>
       <td>${s.questions}</td>
-      <td><strong>${s.average_score}</strong>/5</td>
+      <td><strong>${interviewScoreLabel(s.average_score)}</strong></td>
       <td><span class="badge bg-${s.finished?'success':'warning'}">${s.finished?'已结束':'进行中'}</span></td>
       <td class="small text-muted">${new Date(s.created_at).toLocaleString()}</td>
       <td>${s.finished ? `<button class="btn btn-sm btn-outline-primary" onclick="viewSession('${s.session_id}')"><i class="bi bi-eye"></i> 复盘</button>` : `<button class="btn btn-sm btn-outline-secondary" onclick="resumeSession('${s.session_id}')"><i class="bi bi-play"></i> 继续</button>`}</td>
@@ -611,7 +622,7 @@ async function viewSession(sid) {
 
   let html = `
     <div class="d-flex gap-3 mb-3">
-      <div class="metric-card flex-fill card"><div class="value">${s.average_score}</div><div class="label">均分/5</div></div>
+      <div class="metric-card flex-fill card"><div class="value">${interviewScoreLabel(s.average_score)}</div><div class="label">有效评分均分</div></div>
       <div class="metric-card flex-fill card"><div class="value">${s.questions_asked}</div><div class="label">问题数</div></div>
       <div class="metric-card flex-fill card"><div class="value">${s.type}</div><div class="label">面试类型</div></div>
     </div>`;
@@ -628,15 +639,19 @@ async function viewSession(sid) {
       // 找对应的评分
       if (s.scores && s.scores[qIdx]) {
         const sc = s.scores[qIdx];
-        const scoreColor = sc.score >= 4 ? 'success' : sc.score >= 3 ? 'primary' : sc.score >= 2 ? 'warning' : 'danger';
+        const hasScore = Number.isInteger(sc.score) && sc.score >= 1 && sc.score <= 5;
+        const score = hasScore ? sc.score : null;
+        const feedback = hasScore
+          ? `<strong>优点:</strong> ${sc.strengths || '-'} &nbsp;|&nbsp; <strong>不足:</strong> ${sc.gaps || '-'}`
+          : (sc.reason || '');
         let kbHtml = '';
         if (sc.kb_refs && sc.kb_refs.length) {
           kbHtml = `<div class="mt-1"><i class="bi bi-database"></i> <strong>知识库来源:</strong> ` +
             sc.kb_refs.map(k => `<span class="badge bg-warning text-dark me-1">${k.heading || k.source}</span>`).join('') + '</div>';
         }
         html += `<div class="alert alert-light py-2 small">
-          <span class="badge bg-${scoreColor} me-2">${sc.score}/5</span>
-          <strong>优点:</strong> ${sc.strengths || '-'} &nbsp;|&nbsp; <strong>不足:</strong> ${sc.gaps || '-'}
+          <span class="badge bg-${interviewScoreColor(score)} me-2">${interviewScoreLabel(score)}</span>
+          ${feedback}
           ${kbHtml}
         </div>`;
         qIdx++;

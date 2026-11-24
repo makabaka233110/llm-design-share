@@ -3,6 +3,8 @@
 基于 Memsearch 的语义搜索知识库。
 """
 
+from __future__ import annotations
+
 import re
 import time
 from datetime import datetime

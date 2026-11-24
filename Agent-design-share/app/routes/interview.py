@@ -4,7 +4,6 @@
 """
 
 import asyncio
-import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError
 
 from app.routes.knowledge import get_memsearch
 
@@ -74,6 +73,13 @@ class InterviewResponse(BaseModel):
     question: Optional[str] = None
     evaluation: Optional[dict] = None  # {score, feedback, knowledge_base}
     error: Optional[str] = None
+
+
+class AnswerEvaluation(BaseModel):
+    score: int = Field(strict=True, ge=1, le=5)
+    strengths: str
+    gaps: str
+    follow_up_suggestion: str
 
 
 # 内存缓存 + 文件持久化
@@ -215,24 +221,41 @@ def _get_interview_prompt(interview_type: str, job_title: str = "", company: str
     )
 
 
+def _average_score(evaluations: list[dict]) -> float | None:
+    scores = []
+    for evaluation in evaluations:
+        score = evaluation.get("score")
+        if type(score) is int and 1 <= score <= 5:
+            scores.append(score)
+    return round(sum(scores) / len(scores), 1) if scores else None
+
+
+def _unavailable_evaluation(reason: str) -> dict:
+    return {"status": "unavailable", "score": None, "reason": reason}
+
+
 async def _evaluate_answer(
-    user_answer: str, kb_knowledge: list[dict], llm_client, session: InterviewSession
+    question: str, user_answer: str, kb_knowledge: list[dict], llm_client
 ) -> dict:
     """评估候选人的回答"""
     knowledge_text = "\n".join(
-        [
-            f"- {k.get('heading', '未知')}: {k.get('content', '')[:200]}"
-            for k in kb_knowledge[:3]
-        ]
+        f"- {item.get('heading', '未知')}: {item['content'][:200]}"
+        for item in kb_knowledge[:3]
+        if (item.get("content") or "").strip()
     )
+    if not knowledge_text:
+        return _unavailable_evaluation("没有检索到可用于评分的参考资料。")
 
     evaluation_prompt = f"""根据候选人的回答，给出评分。
+
+面试问题：
+{question}
 
 候选人回答：
 {user_answer}
 
 知识库最佳实践：
-{knowledge_text if knowledge_text.strip() else "无相关知识库记录"}
+{knowledge_text}
 
 请评估，严格返回 JSON：
 {{"score": <1到5的整数>, "strengths": "<优点>", "gaps": "<不足>", "follow_up_suggestion": "<追问方向>"}}"""
@@ -245,28 +268,18 @@ async def _evaluate_answer(
             max_tokens=500,
         )
 
-        # 解析 JSON（尝试提取 JSON 块）
-        try:
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            if start >= 0 and end > start:
-                return json.loads(content[start:end])
-        except (json.JSONDecodeError, ValueError):
-            pass
+    except Exception:
+        return _unavailable_evaluation("评分服务暂时不可用。")
 
-        return {
-            "score": 3,
-            "strengths": "回答合理",
-            "gaps": "暂无反馈",
-            "follow_up_suggestion": content[:100],
-        }
-    except Exception as e:
-        return {
-            "score": 0,
-            "error": str(e),
-            "strengths": "",
-            "gaps": "LLM 服务不可用",
-        }
+    start = content.find("{")
+    end = content.rfind("}") + 1
+    if start < 0 or end <= start:
+        return _unavailable_evaluation("模型返回的评分格式无效。")
+    try:
+        evaluation = AnswerEvaluation.model_validate_json(content[start:end])
+    except ValidationError:
+        return _unavailable_evaluation("模型返回的评分格式无效。")
+    return {"status": "scored", **evaluation.model_dump()}
 
 
 @router.post("/start")
@@ -325,11 +338,12 @@ async def answer_question(req: InterviewMessageRequest) -> InterviewResponse:
         llm_client = _get_llm_client()
 
         # 1. 从知识库召回相关答案
+        question = session.messages[-1]["content"]
         kb_knowledge = []
         try:
             memsearch = get_memsearch()
             kb_knowledge = await memsearch.search(
-                query=session.messages[-1]["content"],
+                query=question,
                 top_k=3,
             )
         except Exception:
@@ -337,15 +351,15 @@ async def answer_question(req: InterviewMessageRequest) -> InterviewResponse:
 
         # 2. 评估候选人的回答
         evaluation = await _evaluate_answer(
-            req.user_answer, kb_knowledge, llm_client, session
+            question, req.user_answer, kb_knowledge, llm_client
         )
-        session.messages.append({"role": "candidate", "content": req.user_answer})
+        candidate_message = {"role": "candidate", "content": req.user_answer}
         # 保存评分 + 知识库来源（复盘时可追溯）
         kb_refs = [
             {"heading": k.get("heading", ""), "source": k.get("source", "").split("/")[-1], "chunk_hash": k.get("chunk_hash", "")}
             for k in kb_knowledge[:3]
         ]
-        session.scores.append({"question_idx": len(session.messages) - 2, "kb_refs": kb_refs, **evaluation})
+        score_record = {"question_idx": len(session.messages) - 1, "kb_refs": kb_refs, **evaluation}
 
         # 3. 生成追问或下一题（合并为单条 user message，避免连续 user role）
         system_prompt = _get_interview_prompt(
@@ -354,7 +368,7 @@ async def answer_question(req: InterviewMessageRequest) -> InterviewResponse:
 
         recent_history = "\n".join(
             f"[{m['role']}]: {m['content'][:150]}"
-            for m in session.messages[-4:]
+            for m in [*session.messages[-3:], candidate_message]
         )
         combined_context = (
             f"对话历史:\n{recent_history}\n\n"
@@ -369,15 +383,18 @@ async def answer_question(req: InterviewMessageRequest) -> InterviewResponse:
             messages=[{"role": "user", "content": combined_context}],
         )
 
-        session.messages.append({"role": "interviewer", "content": next_question})
+        session.messages.extend([candidate_message, {"role": "interviewer", "content": next_question}])
+        session.scores.append(score_record)
         _save_session(session)
 
+        feedback = evaluation.get("reason") or f"{evaluation.get('strengths', '')} | {evaluation.get('gaps', '')}"
         return InterviewResponse(
             ok=True,
             question=next_question,
             evaluation={
-                "score": evaluation.get("score", 0),
-                "feedback": f"{evaluation.get('strengths', '')} | {evaluation.get('gaps', '')}",
+                "status": evaluation["status"],
+                "score": evaluation["score"],
+                "feedback": feedback,
                 "knowledge_base": [
                     {
                         "chunk_hash": k.get("chunk_hash", ""),
@@ -401,11 +418,8 @@ async def end_interview(session_id: str) -> dict:
     if session.finished:
         return {"ok": True, "summary": session.summary, "already_finished": True}
 
-    avg_score = (
-        sum(s.get("score", 0) for s in session.scores) / len(session.scores)
-        if session.scores
-        else 0
-    )
+    avg_score = _average_score(session.scores)
+    score_text = f"{avg_score:.1f}/5" if avg_score is not None else "无有效评分"
 
     try:
         llm_client = _get_llm_client()
@@ -422,7 +436,7 @@ async def end_interview(session_id: str) -> dict:
 
 {history}
 
-平均评分：{avg_score:.1f}/5
+平均评分：{score_text}
 
 请输出：
 1. 整体表现（1-2 句）
@@ -435,7 +449,7 @@ async def end_interview(session_id: str) -> dict:
         )
         session.summary = summary_text
     except Exception:
-        session.summary = f"面试结束。平均评分：{avg_score:.1f}/5，共 {len(session.scores)} 道题。"
+        session.summary = f"面试结束。平均评分：{score_text}，共 {len(session.scores)} 道题。"
 
     session.finished = True
     _save_session(session)
@@ -482,7 +496,7 @@ async def end_interview(session_id: str) -> dict:
         "summary": session.summary,
         "stats": {
             "questions": len(session.scores),
-            "average_score": round(avg_score, 1),
+            "average_score": avg_score,
             "type": session.interview_type,
         },
         "saved_to_kb": saved_signal,
@@ -525,11 +539,6 @@ async def list_sessions() -> dict:
     for path in sorted(SESSIONS_DIR.glob("*.json"), reverse=True):
         try:
             s = InterviewSession.model_validate_json(path.read_text(encoding="utf-8"))
-            avg = (
-                sum(sc.get("score", 0) for sc in s.scores) / len(s.scores)
-                if s.scores
-                else 0
-            )
             sessions.append({
                 "session_id": s.session_id,
                 "type": s.interview_type,
@@ -538,7 +547,7 @@ async def list_sessions() -> dict:
                 "created_at": s.created_at,
                 "finished": s.finished,
                 "questions": len(s.scores),
-                "average_score": round(avg, 1),
+                "average_score": _average_score(s.scores),
             })
         except Exception:
             continue
@@ -550,12 +559,6 @@ async def list_sessions() -> dict:
 async def get_session(session_id: str) -> dict:
     """获取面试会话详情"""
     session = _get_session(session_id)
-    avg_score = (
-        sum(s.get("score", 0) for s in session.scores) / len(session.scores)
-        if session.scores
-        else 0
-    )
-
     return {
         "ok": True,
         "session": {
@@ -565,7 +568,7 @@ async def get_session(session_id: str) -> dict:
             "finished": session.finished,
             "message_count": len(session.messages),
             "questions_asked": len([m for m in session.messages if m["role"] == "interviewer"]),
-            "average_score": round(avg_score, 1),
+            "average_score": _average_score(session.scores),
             "scores": session.scores,
             "summary": session.summary,
         },

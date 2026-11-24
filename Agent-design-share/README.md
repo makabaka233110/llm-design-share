@@ -23,14 +23,12 @@
 需要 Python 3.10+ 和 macOS / Linux；首次安装依赖及模型需要联网。
 
 ```bash
-# 从共享仓库下载 llm-design-share.zip 并解压
-cd llm-design-share
-cp .env.example .env
-# 在本机 .env 中填入自己的 LLM_API_KEY、LLM_BASE_URL 和 LLM_MODEL
+git clone https://github.com/makabaka233110/llm-design-share.git
+cd llm-design-share/Agent-design-share
 bash start.sh
 ```
 
-打开 http://127.0.0.1:8000 。不需要 LLM 的功能可单独使用；模拟面试和 AI 生成功能需要有效的服务配置。
+打开 http://127.0.0.1:8000 。首次启动会从 `.env.example` 创建本地 `.env`。闪卡手动创建与复习可以直接使用。要启用模拟面试或 AI 生成，请按模型服务的要求在 `.env` 中填入 `LLM_API_KEY`、`LLM_MODEL` 和所需的 `LLM_BASE_URL`，然后重启。
 
 知识库、会话和闪卡从空数据开始。在页面粘贴非敏感的技术资料或手动添加测试卡片即可试用。运行数据由程序生成，已加入忽略规则。
 
