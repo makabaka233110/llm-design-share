@@ -1,0 +1,10 @@
+{"id": "q1", "domain": "computing", "split": "test", "question": "Redis 宕机后最多会丢多少数据？", "relevant": ["cs-redis"]}
+{"id": "q2", "domain": "computing", "split": "test", "question": "为什么建立连接要握手三次而不是两次？", "relevant": ["cs-tcp"]}
+{"id": "q3", "domain": "computing", "split": "dev", "question": "网络分区时系统该怎么取舍？", "relevant": ["cs-cap"]}
+{"id": "q4", "domain": "computing", "split": "test", "question": "为什么 MySQL 用 B+ 树而不是二叉树做索引？", "relevant": ["cs-index"]}
+{"id": "q5", "domain": "business", "split": "test", "question": "把时间花在兼职上，代价是什么？", "relevant": ["biz-oc"]}
+{"id": "q6", "domain": "business", "split": "test", "question": "项目已经亏了很多钱，要不要继续投入？", "relevant": ["biz-sunk"]}
+{"id": "q7", "domain": "business", "split": "dev", "question": "什么情况下涨价反而能多赚钱？", "relevant": ["biz-elastic"]}
+{"id": "q8", "domain": "science", "split": "test", "question": "植物释放的氧气来自哪里？", "relevant": ["sci-photo"]}
+{"id": "q9", "domain": "science", "split": "test", "question": "为什么推力越大小车加速越快？", "relevant": ["sci-newton2"]}
+{"id": "q10", "domain": "science", "split": "dev", "question": "打过疫苗为什么再感染时症状更轻？", "relevant": ["sci-vaccine"]}

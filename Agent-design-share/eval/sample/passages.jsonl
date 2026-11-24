@@ -1,0 +1,12 @@
+{"id": "cs-redis", "domain": "computing", "topic": "Redis", "title": "Redis 持久化", "text": "Redis 提供两种持久化方式。RDB 在指定时间点生成内存快照，恢复快但可能丢失最后一次快照之后的数据。AOF 以追加方式记录每条写命令，appendfsync 可设为 always、everysec 或 no；everysec 最多丢失约 1 秒数据。AOF 文件会变大，因此 Redis 提供 AOF 重写，用当前数据生成最小命令集来压缩日志。"}
+{"id": "cs-tcp", "domain": "computing", "topic": "网络", "title": "TCP 三次握手", "text": "TCP 建立连接需要三次握手：客户端发送 SYN，服务端回复 SYN+ACK，客户端再发送 ACK。三次握手让双方确认各自的初始序列号，并防止已失效的历史连接请求被服务端误认为新连接。"}
+{"id": "cs-cap", "domain": "computing", "topic": "分布式", "title": "CAP 定理", "text": "CAP 定理指出，分布式系统在发生网络分区（P）时，无法同时保证一致性（C）和可用性（A）。因此实际系统在分区时需要在 CP 与 AP 之间取舍，例如 ZooKeeper 偏向 CP，Cassandra 可配置为偏向 AP。"}
+{"id": "cs-index", "domain": "computing", "topic": "数据库", "title": "B+ 树索引", "text": "MySQL InnoDB 使用 B+ 树索引。B+ 树非叶子节点只存键，扇出大、树高低，减少磁盘 IO；叶子节点通过链表相连，适合范围查询。聚簇索引的叶子节点存整行数据，二级索引叶子存主键值，需要回表。"}
+{"id": "biz-oc", "domain": "business", "topic": "经济学", "title": "机会成本", "text": "机会成本是做出一个选择时所放弃的最佳替代选择的价值。它不仅包括金钱，也包括时间等资源。例如学生用一晚上做兼职，机会成本是这段时间用于学习可能带来的收益中最高的那一项。"}
+{"id": "biz-sunk", "domain": "business", "topic": "经济学", "title": "沉没成本", "text": "沉没成本是已经发生且无法收回的成本。理性决策应只考虑未来的边际成本与收益，而不应因为已经投入而继续投入，这种错误称为沉没成本谬误。"}
+{"id": "biz-swot", "domain": "business", "topic": "管理", "title": "SWOT 分析", "text": "SWOT 分析从内部的优势（Strengths）、劣势（Weaknesses）和外部的机会（Opportunities）、威胁（Threats）四个方面评估组织或项目，用于制定战略。内部因素可控，外部因素不可控。"}
+{"id": "biz-elastic", "domain": "business", "topic": "经济学", "title": "需求价格弹性", "text": "需求价格弹性衡量需求量对价格变化的敏感程度，等于需求量变化百分比除以价格变化百分比。弹性大于 1 为富有弹性，此时降价会增加总收入；弹性小于 1 为缺乏弹性，此时提价会增加总收入。"}
+{"id": "sci-photo", "domain": "science", "topic": "生物", "title": "光合作用", "text": "光合作用分为光反应和暗反应（卡尔文循环）。光反应在类囊体膜上进行，利用光能分解水、释放氧气并生成 ATP 和 NADPH；卡尔文循环在叶绿体基质中利用 ATP 和 NADPH 固定二氧化碳合成糖。"}
+{"id": "sci-newton2", "domain": "science", "topic": "物理", "title": "牛顿第二定律", "text": "牛顿第二定律指出物体的加速度与所受合外力成正比，与质量成反比，即 F = ma。合外力为零时物体保持静止或匀速直线运动。"}
+{"id": "sci-entropy", "domain": "science", "topic": "物理", "title": "熵与热力学第二定律", "text": "热力学第二定律指出孤立系统的熵不会减少。熵可理解为系统微观状态数的度量。热量不能自发地从低温物体传到高温物体。"}
+{"id": "sci-vaccine", "domain": "science", "topic": "生物", "title": "疫苗原理", "text": "疫苗通过引入灭活或减毒的病原体、或其抗原成分，刺激免疫系统产生抗体和记忆细胞。再次接触病原体时，记忆细胞能快速引发更强的免疫反应。"}

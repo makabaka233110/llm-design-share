@@ -1,0 +1,2 @@
+{"id": "h1", "family": "opportunity-cost", "label": "persistent", "question": "什么是机会成本？", "concept": "机会成本", "attempts": ["机会成本就是已经花掉的钱。", "机会成本是做决定时花的钱，比如买票的钱。", "机会成本是付出的价格，例如兼职赚的钱。"], "recurring": ["把机会成本等同于已支付的金钱"]}
+{"id": "h2", "family": "photosynthesis", "label": "corrected", "question": "光合作用释放的氧气来自哪里？", "concept": "光合作用", "attempts": ["来自二氧化碳。", "来自二氧化碳分解。", "来自光反应中水的分解。"], "recurring": []}

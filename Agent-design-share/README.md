@@ -1,62 +1,90 @@
-# llm-design-share — 面壁 AI 面试训练系统
+# 面壁 Mianbi — 有证据的面试训练与持续学习记录
 
-第 68 组的脱敏共享副本，供队友阅读代码、讨论方案和本地试用。
+第 68 组项目代码。实现 proposal 中的四个基础模块（知识库与反馈排序、模拟面试、语音复盘、闪卡）和三个扩展（个性化提示、费曼讲解与版本历史、关联情境题），以及第 4 节实验所需的脚本。
 
-## Proposal
+## 启动
 
-- [阅读 proposal（PDF）](proposal/group68_proposal.pdf)
-- [LaTeX 源文件](proposal/group68_proposal.tex)
-
-采用 NeurIPS 2026 模板，省略摘要。**当前为团队讨论草稿；正式提交前必须补齐所有成员的姓名、学号和香港大学邮箱。** 请勿把含成员学号、邮箱的提交版直接放入公开仓库。
-
-## 已包含的功能
-
-- Markdown 知识库与 Memsearch 检索。
-- 技术、行为、系统设计三类模拟面试及知识库辅助反馈。
-- SenseVoice 本地语音转写，以及通过配置的 LLM 服务生成复盘。
-- 闪卡增删、导入导出、生成和到期复习。
-
-现有闪卡使用固定 1/3/7 天规则；proposal 中的完整 SM-2、统一检索与实验评估属于计划工作。本仓库不声称已有可复现的命中率或学习效果结果。
-
-## 本地启动
-
-需要 Python 3.10+ 和 macOS / Linux；首次安装依赖及模型需要联网。
+需要 macOS / Linux，Python 3.12+ 或 [uv](https://docs.astral.sh/uv/)。
 
 ```bash
-# 从共享仓库下载 llm-design-share.zip 并解压
-cd llm-design-share
-cp .env.example .env
-# 在本机 .env 中填入自己的 LLM_API_KEY、LLM_BASE_URL 和 LLM_MODEL
-bash start.sh
+cd Agent-design-share
+bash start.sh          # 首次运行会生成 .env，填好 LLM 配置后再运行一次
 ```
 
-打开 http://127.0.0.1:8000 。不需要 LLM 的功能可单独使用；模拟面试和 AI 生成功能需要有效的服务配置。
+打开 http://127.0.0.1:8000 。知识库检索、闪卡复习和语音转写在本地运行；评估、提示、出题和复盘会把相关文本发送到 `.env` 中配置的模型服务。
 
-知识库、会话和闪卡从空数据开始。在页面粘贴非敏感的技术资料或手动添加测试卡片即可试用。运行数据由程序生成，已加入忽略规则。
+## 一条学习链路
 
-## 共享范围与数据处理
+```
+资料（知识库，已审核）──检索──▶ 评估器 ◀── 作答（模拟面试 / 费曼讲解 / 情境题）
+        ▲ 有用/没用 → 优先级          │
+        │                            ▼
+        │                 薄弱点（待确认 → 已确认）◀── 语音复盘
+        │                     │            │
+        │                 闪卡草稿 → SM-2 复习   情境题（关联原题与概念）
+        └─ 只有人工审核过的资料能当证据；AI 生成内容和学习记录永不进入参考库
+```
 
-- 本副本不包含原有面试会话、复盘、个人学习进度、第三方面经全文或旧论文生成脚本。
-- 未复制原仓库 Git 历史；仓库从干净的首次提交开始。
-- 保留必要源码、项目内技能文件和配置示例；不包含真实 API 凭据。
-- 服务默认仅监听 127.0.0.1。当前没有多用户登录与权限隔离，不应直接作为公网服务部署。
-- 本地语音识别不等于全流程离线：调用评分、总结或闪卡生成时，相应文本和检索片段会发送到你配置的模型服务。
-- 上传新文件前检查内容；.gitignore 不会自动清除已经被 Git 跟踪的敏感内容。
+## 架构
 
-## 项目结构
+| 文件 | 职责 |
+|---|---|
+| `app/db.py` | 学习记录库（一个 SQLite）：题目、作答版本、评估、提示与偏好、会话、复盘、薄弱点、闪卡、用量日志 |
+| `app/retrieval.py` | 参考库：Markdown + Memsearch（bge-m3 ONNX + Milvus Lite）。四种检索模式 `bm25 / dense / hybrid / weighted`，优先级重排公式 (1) |
+| `app/agent.py` | 所有 LLM 工具及其 prompt：评估、面试官、复盘、提示与偏好归纳、情境题生成与检查、闪卡生成 |
+| `app/llm.py` | 唯一的模型入口：OpenAI 兼容 / Anthropic，JSON 校验 + 1 次纠错重试，记录 token 与延迟 |
+| `app/srs.py` | SM-2 与固定 1/3/7 天两种调度 |
+| `app/api/*.py` | HTTP 接口（按模块拆分），`X-User` 区分学习者 |
+| `app/static/` | 单页前端（原生 JS，无构建步骤、无外部 CDN） |
+| `eval/run.py` | 第 4 节实验脚本 |
 
-```text
-app/          后端、前端、闪卡脚本与依赖的技能文件
-proposal/     共享版提案 PDF 与 LaTeX
-知识库/       本机知识库（运行数据不提交）
-data/         本机闪卡（运行数据不提交）
-.env.example  空凭据配置示例
+## proposal 对照
+
+| proposal | 实现位置 |
+|---|---|
+| 资料增删改、来源 / 主题 / 版本 / 审核状态 / 优先级 | `api/knowledge.py`；修改正文时版本号加 1 并重新索引 |
+| `final = hybrid × (1 + 0.1 × priority)`，priority ∈ [0,5]，默认 2，有用 +0.5，没用 −1 | `retrieval.retrieve(mode="weighted")`；候选池逐步翻倍，直到池外的段落不可能进入前 k；`hybrid` 模式即不加权基线 |
+| 评估器取重排后前 3 条已审核资料 | `retrieval.evidence()`：先用题目 + 概念检索，再用回答中的论断检索，合并后取前 3 |
+| 证据不足或输出无效时不编造分数 | `status = uncertain / unavailable`，`scores = null` |
+| 1–5 分 rubric（正确性、覆盖度、推理、清晰度），反馈关联原话与证据编号 | `agent.evaluate`；引用若不在原文中、证据编号若不存在，都会被丢弃 |
+| 存储 rubric 与模型版本 | `evaluations.rubric_version / model / evidence_mode` |
+| 模拟面试：岗位、领域、题型（专业知识 / 行为 / 案例），追问或换题，会话保存与恢复 | `api/interview.py`；最多连续追问 2 次。每个问题进入题库，标注 `origin=interview` |
+| 语音：SenseVoice 本地转写 → 可编辑 → 复盘 → 保存 → 薄弱点 → 闪卡草稿 | `api/speech.py` + `api/practice.py` 中的 gaps |
+| 闪卡：手动 / 生成 / 集合 / 导入导出 / 删除 / 到期队列 / 统计 / 退出队列；关联薄弱点与原题 | `api/cards.py`（`gap_id`、`question_id`、`sources`） |
+| Ext 1：提示与反馈分别存储，偏好可查看 / 编辑 / 重置，按用户隔离，生成新提示时使用 | `agent.hint / update_prefs`；每条提示记录所用的偏好版本 |
+| Ext 2：费曼讲解（文字或语音），每次修改是新版本，时间线 + 并排对比，参考历史作答 | `POST /api/questions/{id}/attempts`；评估条件不同时，界面提示分数不可直接比较 |
+| Ext 3：情境题保留概念、改变情境，评分要点在作答前隐藏，检查概念、可答性、是否重复 | `agent.scenario`：生成后由 LLM 审核，未通过则带原因重试 1 次 |
+| 参考库与学习记录库分离 | 参考库为 `data/kb/*.md` + Milvus，其余数据全部在 SQLite |
+| 用户隔离、可删除个人数据 | 每张表都有 `user_id`；`DELETE /api/me` |
+| 记录 API 用量、成本、延迟、失败率 | `llm_log` 表；界面「学习记录 → 用量」 |
+
+## 和上一版相比修掉的问题
+
+- 优先级原来从 chunk 文本里解析，只有文件头所在的那个 chunk 有这一行，其他 chunk 一律按 2。现在优先级存在 `docs` 表里，同一文件的所有 chunk 都能读到。
+- 面试评估原来不经过重排，评估时也没有把题目传给模型。现在评估统一走 `evidence()`，题目、概念和评分要点都会传入。
+- 面试总结、录音转写原来以优先级 4 写进知识库，下一次又被当作评分证据。现在它们写入学习记录库。
+- JSON 解析失败时原来会编造 3 分，现在返回 `unavailable`。
+- Milvus 默认的 `standard` 分词器不切中文，BM25 对中文查询基本没有命中。现在用 jieba 建索引。另外 Milvus Lite 返回的 BM25 距离是负数，原代码直接按它排序，顺序是反的，现已修正。
+- Memsearch 原来使用全局默认库 `~/.memsearch/milvus.db`，现在改为项目内的 `data/milvus.db`。
+- 前端原来把 LLM 输出直接插入 HTML，存在 XSS 风险。现在所有动态内容都会转义。
+
+## 实验（proposal §4）
+
+```bash
+.venv/bin/python eval/run.py retrieval --data eval/sample          # 无需 LLM
+.venv/bin/python eval/run.py evaluator --conditions weighted,none  # 需要 .env 中的 LLM
+.venv/bin/python eval/run.py hints | history | scenarios
+.venv/bin/python eval/run.py stats eval/results/evaluator_rating.csv --metric usefulness --a none --b weighted
+```
+
+数据格式见 `eval/README.md`。`eval/sample/` 只是演示格式的小样例（12 段资料、10 个查询），不是正式数据集。
+
+## 测试
+
+```bash
+.venv/bin/python -m pytest -q        # 9 个端到端测试：真实检索 + 脚本化的假 LLM
 ```
 
 ## 组件来源
 
-本项目基于现有 Agent-design 原型整理。保留了 Memento 闪卡和系统设计提示文件中的上游署名；使用 [Memsearch](https://github.com/zilliztech/memsearch)、[Hermes Agent](https://github.com/NousResearch/hermes-agent) 相关组件，以及 [SenseVoice](https://github.com/FunAudioLLM/SenseVoice)。本仓库不包含完整 Hermes 运行时；组件许可依各自上游规定。
-
-## 验证范围
-
-共享前进行静态敏感信息扫描、Python 语法检查、忽略规则检查和空闪卡存储检查。未在此过程调用付费 LLM、下载语音模型或完成端到端运行验证。
+[Memsearch](https://github.com/zilliztech/memsearch)（索引与混合检索）、[BGE-M3](https://arxiv.org/abs/2402.03216)、[SenseVoice](https://github.com/FunAudioLLM/SenseVoice)、[jieba](https://github.com/fxsjy/jieba)；SM-2 按照 Woźniak 的原始描述实现。许可遵循各自上游。

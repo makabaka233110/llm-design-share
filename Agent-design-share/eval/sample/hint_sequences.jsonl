@@ -1,0 +1,2 @@
+{"id": "s1", "target_preference": "只要思考方向，不要直接给结论", "history": [{"question": "TCP 为什么三次握手？", "concept": "TCP 握手", "hint": "因为要同步双方序列号并防止历史连接。", "rating": "too_direct", "comment": "直接把答案说了"}], "later": [{"id": "t1", "family": "redis-persist", "question": "Redis 有哪些持久化方式？", "concept": "Redis 持久化"}]}
+{"id": "s2", "target_preference": "希望提示更具体，点出关键词", "history": [{"question": "什么是沉没成本？", "concept": "沉没成本", "hint": "想想过去。", "rating": "too_vague", "comment": "太空了，没有方向"}], "later": [{"id": "t2", "family": "opportunity-cost", "question": "什么是机会成本？", "concept": "机会成本"}]}

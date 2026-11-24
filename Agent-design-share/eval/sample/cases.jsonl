@@ -1,0 +1,6 @@
+{"id": "c1s", "family": "redis-persist", "domain": "computing", "split": "test", "question": "Redis 有哪些持久化方式，各自优缺点？", "concept": "Redis 持久化", "answer_type": "strong", "answer": "RDB 定期生成快照，恢复快但可能丢失最后一次快照后的数据；AOF 追加记录写命令，everysec 最多丢 1 秒，文件大时用 AOF 重写压缩。"}
+{"id": "c1f", "family": "redis-persist", "domain": "computing", "split": "test", "question": "Redis 有哪些持久化方式，各自优缺点？", "concept": "Redis 持久化", "answer_type": "flawed", "answer": "Redis 只有 RDB 一种持久化方式，每次写入都会立即保存快照，所以不会丢数据。"}
+{"id": "c2s", "family": "opportunity-cost", "domain": "business", "split": "test", "question": "什么是机会成本？举例说明。", "concept": "机会成本", "answer_type": "strong", "answer": "机会成本是选择某个方案时放弃的最佳替代方案的价值，例如晚上去兼职，放弃的是把时间用于学习的收益。"}
+{"id": "c2f", "family": "opportunity-cost", "domain": "business", "split": "test", "question": "什么是机会成本？举例说明。", "concept": "机会成本", "answer_type": "flawed", "answer": "机会成本就是已经花掉的钱，比如买电影票花的 50 元。"}
+{"id": "c3s", "family": "photosynthesis", "domain": "science", "split": "test", "question": "光合作用的两个阶段分别做什么？", "concept": "光合作用", "answer_type": "strong", "answer": "光反应在类囊体膜上利用光能分解水、放出氧气，生成 ATP 和 NADPH；卡尔文循环在基质中用它们固定二氧化碳合成糖。"}
+{"id": "c3f", "family": "photosynthesis", "domain": "science", "split": "test", "question": "光合作用的两个阶段分别做什么？", "concept": "光合作用", "answer_type": "flawed", "answer": "光合作用释放的氧气来自二氧化碳，暗反应只在夜晚进行。"}

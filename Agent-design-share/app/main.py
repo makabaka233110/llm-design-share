@@ -1,86 +1,52 @@
-"""Interview Assistant - FastAPI Backend
+"""Mianbi (面壁) — evidence-grounded interview training with persistent learning memory."""
 
-基于 Hermes + Memsearch 组装的面试准备工具后端。
-"""
-
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI  # noqa: E402
+from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from app.routes import flashcards, knowledge, interview, speech
+from app import db, llm, retrieval  # noqa: E402
+from app.api import cards, interview, knowledge, me, practice, speech  # noqa: E402
 
-app = FastAPI(
-    title="Interview Assistant API",
-    description="AI-powered interview preparation platform",
-    version="0.1.0",
-)
-
-# 注册路由
-app.include_router(flashcards.router)
-app.include_router(knowledge.router)
-app.include_router(interview.router)
-app.include_router(speech.router)
-
-# CORS - 允许前端访问
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # TODO: 生产环境改为具体域名
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+STATIC = Path(__file__).parent / "static"
+state = {"index": "starting"}
 
 
-STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-@app.get("/")
-async def root():
-    """前端页面"""
-    return FileResponse(str(STATIC_DIR / "index.html"))
-
-
-@app.on_event("startup")
-async def startup_index():
-    """启动时自动建立知识库向量索引（从 Markdown 文件重建）"""
+async def _warm_index():
+    """Load the embedding model and sync the index in the background so the UI opens immediately."""
     try:
-        from app.routes.knowledge import get_memsearch
-        mem = get_memsearch()
-        count = await mem.index()
-        print(f"[启动] 知识库索引完成，{count} 个 chunks")
+        n = await retrieval.reindex()
+        state["index"] = f"ok ({retrieval.mem().store.count()} chunks, {n} re-embedded)"
     except Exception as e:
-        print(f"[启动] 知识库索引跳过: {e}")
+        state["index"] = f"unavailable: {e}"
 
 
+@asynccontextmanager
+async def lifespan(_):
+    db.init()
+    task = asyncio.create_task(_warm_index())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="Mianbi API", version="0.2.0", lifespan=lifespan)
+for r in (knowledge, practice, interview, speech, cards, me):
+    app.include_router(r.router)
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(STATIC / "index.html")
 
 
 @app.get("/api/health")
-async def health():
-    """详细健康检查"""
-    try:
-        from app.routes.knowledge import get_memsearch
-        mem = get_memsearch()
-        ms_status = f"ok ({mem.store.count()} chunks)"
-    except Exception:
-        ms_status = "unavailable"
-
-    return {
-        "status": "healthy",
-        "components": {
-            "api": "ok",
-            "memsearch": ms_status,
-            "flashcards": "ok",
-        },
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+def health():
+    return {"index": state["index"], "llm_model": llm.MODEL or "not configured", "data_dir": str(db.DATA_DIR)}

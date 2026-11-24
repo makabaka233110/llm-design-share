@@ -1,0 +1,200 @@
+"""End-to-end API test: real retrieval (bge-m3 ONNX + Milvus Lite), scripted fake LLM.
+
+Run: .venv/bin/python -m pytest -q tests
+"""
+
+import json
+import os
+import tempfile
+from datetime import datetime, timezone
+
+os.environ["MIANBI_DATA"] = tempfile.mkdtemp(prefix="mianbi-test-")
+os.environ["LLM_API_KEY"] = "test"
+os.environ["LLM_MODEL"] = "fake-model"
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app import llm, srs  # noqa: E402
+from app.main import app  # noqa: E402
+
+PROMPTS: list[str] = []
+BROKEN = {"on": False}
+
+
+def fake_complete(system, messages, max_tokens):
+    p = messages[0]["content"]
+    PROMPTS.append(p)
+    if BROKEN["on"]:
+        return "not json", 1, 1
+    if "## 学习者回答" in p:
+        answer = p.split("## 学习者回答")[1].split("\n", 1)[1].split("\n\n")[0]
+        out = {"status": "ok", "scores": {"correctness": 4, "coverage": 3, "reasoning": 3, "clarity": 4},
+               "strengths": [{"text": "提到 RDB", "quote": answer[:4], "evidence": ["E1", "E9"]}],
+               "omissions": [{"text": "没讲 AOF 重写", "quote": "编造的话", "evidence": []}],
+               "misconceptions": [], "revisions": ["补充 AOF"], "recurring": [], "resolved": []}
+    elif '"action"' in p:
+        out = {"action": "follow_up", "question": f"追问{len(PROMPTS)}：AOF 怎么重写？", "concept": "Redis 持久化"}
+    elif "转写稿" in p:
+        out = {"summary": "讲了持久化", "key_points": ["RDB"], "weaknesses": ["AOF 不熟"], "improvements": ["复习"]}
+    elif "设计一道新的情境题" in p:
+        out = {"question": "一个计数服务每秒写 1 万次，宕机最多丢 1 秒数据，怎么配置持久化？",
+               "context": "写多读少，磁盘一般", "eval_points": ["选 AOF everysec"], "concept": "Redis 持久化"}
+    elif "判断：1)" in p:
+        out = {"concept_aligned": True, "answerable": True, "duplicate_of": None, "reason": ""}
+    elif "闪卡" in p:
+        out = {"cards": [{"question": "AOF 重写做什么？", "answer": "压缩日志", "evidence": ["E1"]}]}
+    elif "给一条提示" in p:
+        return "想想宕机时会丢多少数据。", 10, 5
+    elif "归纳该学习者" in p:
+        return "- 只给思考方向，不要给结论", 10, 5
+    else:
+        return "整体不错。", 10, 5
+    return json.dumps(out, ensure_ascii=False), 10, 5
+
+
+@pytest.fixture(scope="module")
+def c():
+    llm.complete = fake_complete
+    with TestClient(app) as client:
+        client.headers["X-User"] = "alice"
+        yield client
+
+
+def test_knowledge_and_retrieval(c):
+    d = c.post("/api/domains", json={"name": "计算机", "goals": "后端面试", "criteria": "重视原理"}).json()
+    r = c.post("/api/kb/docs", json={"title": "Redis 笔记", "domain_id": d["id"],
+                                      "body": "Redis 持久化有哪些方式？\nRDB 快照，AOF 追加日志，AOF 重写压缩日志。\n"
+                                              "为什么 TCP 要三次握手？\n同步序列号，防止历史连接。"}).json()
+    assert r["auto_structured"] and r["priority"] == 2
+    c.post("/api/kb/docs", json={"title": "机会成本", "body": "选择一项时放弃的次优选择的价值。", "topic": "经济学"})
+    c.post("/api/kb/docs", json={"title": "未审核面经", "body": "Redis 持久化只有 RDB。", "reviewed": False})
+    for mode in ("bm25", "dense", "hybrid", "weighted"):
+        hits = c.post("/api/kb/search", json={"query": "Redis 持久化", "mode": mode}).json()["results"]
+        assert hits and "Redis" in hits[0]["content"], mode
+    # weighted = hybrid x (1 + 0.1 p): with p=2 every final score is 1.2x the base score
+    h = c.post("/api/kb/search", json={"query": "Redis 持久化", "mode": "weighted"}).json()["results"][0]
+    assert h["final_score"] == pytest.approx(h["base_score"] * (1 + 0.1 * h["priority"]), abs=1e-3)
+    # review filter + isolation
+    hits = c.post("/api/kb/search", json={"query": "Redis", "reviewed_only": True, "k": 10}).json()["results"]
+    assert all(x["reviewed"] for x in hits)
+    assert c.post("/api/kb/search", json={"query": "Redis"}, headers={"X-User": "bob"}).json()["results"] == []
+    # feedback: +0.5 / -1, clamped to [0, 5]; every chunk of the doc sees the new priority
+    assert c.post("/api/kb/feedback", json={"doc_id": r["id"], "helpful": False}).json()["new_priority"] == 1.0
+    for _ in range(3):
+        last = c.post("/api/kb/feedback", json={"doc_id": r["id"], "helpful": False}).json()
+    assert last["new_priority"] == 0
+    hits = c.post("/api/kb/search", json={"query": "TCP 三次握手", "k": 10}).json()["results"]
+    assert all(x["priority"] == 0 for x in hits if x["doc_id"] == r["id"])
+    # edit bumps version
+    e = c.put(f"/api/kb/docs/{r['id']}", json={"body": "## Redis 持久化\nRDB 与 AOF，AOF 重写压缩日志。", "priority": 3}).json()
+    assert e["version"] == 2 and e["priority"] == 3
+
+
+def test_feynman_history_and_evaluation(c):
+    q = c.post("/api/questions", json={"text": "Redis 有哪些持久化方式？", "concept": "Redis 持久化"}).json()
+    r1 = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "RDB 快照"}).json()
+    ev = r1["evaluation"]
+    assert ev["status"] == "ok" and ev["rubric_version"] == "r1" and 1 <= len(ev["evidence"]) <= 3
+    assert ev["feedback"]["strengths"][0]["evidence"] == ["E1"]      # unknown id E9 dropped
+    assert ev["feedback"]["omissions"][0]["quote"] == ""              # invented quote dropped
+    r2 = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "RDB 和 AOF"}).json()
+    assert r2["attempt"]["version"] == 2 and "## 历史作答" in PROMPTS[-1] and "没讲 AOF 重写" in PROMPTS[-1]
+    c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "RDB", "history_aware": False})
+    assert "## 历史作答" not in PROMPTS[-1]
+    detail = c.get(f"/api/questions/{q['id']}").json()
+    assert [a["answer"] for a in detail["attempts"]] == ["RDB 快照", "RDB 和 AOF", "RDB"]  # originals unchanged
+    # no reviewed evidence -> explicit uncertain, no invented score
+    qb = c.post("/api/questions", json={"text": "什么是 CAP？"}, headers={"X-User": "bob"}).json()
+    rb = c.post(f"/api/questions/{qb['id']}/attempts", json={"answer": "一致性"}, headers={"X-User": "bob"}).json()
+    assert rb["evaluation"]["status"] == "uncertain" and rb["evaluation"]["scores"] is None
+    # invalid model output after the corrective retry -> unavailable
+    BROKEN["on"] = True
+    ru = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "x"}).json()
+    BROKEN["on"] = False
+    assert ru["evaluation"]["status"] == "unavailable" and ru["evaluation"]["scores"] is None
+    # cross-user access is blocked
+    assert c.get(f"/api/questions/{q['id']}", headers={"X-User": "bob"}).status_code == 404
+
+
+def test_hints_and_preferences(c):
+    q = c.post("/api/questions", json={"text": "AOF 重写的原理？", "concept": "Redis 持久化"}).json()
+    h = c.post(f"/api/questions/{q['id']}/hint", json={}).json()
+    assert h["pref_version"] == 0
+    p = c.post(f"/api/hints/{h['id']}/feedback", json={"feedback": "too_direct", "comment": "直接给了答案"}).json()
+    assert p["prefs"]["version"] == 1 and "思考方向" in p["prefs"]["summary"]
+    h2 = c.post(f"/api/questions/{q['id']}/hint", json={}).json()
+    assert h2["pref_version"] == 1 and h2["used_feedback"] == 1 and "只给思考方向" in PROMPTS[-1]
+    c.post(f"/api/questions/{q['id']}/hint", json={"personalized": False})
+    assert "提示偏好" not in PROMPTS[-1]
+    assert c.put("/api/prefs", json={"summary": "简短"}).json()["version"] == 2
+    reset = c.post("/api/prefs/reset").json()
+    assert reset["summary"] == "" and reset["source"] == "reset"
+    h3 = c.post(f"/api/questions/{q['id']}/hint", json={}).json()
+    assert h3["used_feedback"] == 0                               # pre-reset feedback no longer used
+    assert len(c.get("/api/prefs").json()["feedback"]) == 1       # but stays traceable
+
+
+def test_scenario_links_to_parent(c):
+    q = c.post("/api/questions", json={"text": "Redis 持久化有哪些方式？", "concept": "Redis 持久化"}).json()
+    s = c.post(f"/api/questions/{q['id']}/scenario", json={"difficulty": "更难"}).json()
+    child = s["question"]
+    assert child["parent_id"] == q["id"] and child["origin"] == "scenario" and "eval_points" not in child
+    r = c.post(f"/api/questions/{child['id']}/attempts", json={"answer": "用 AOF everysec"}).json()
+    assert "选 AOF everysec" in PROMPTS[-1] and r["attempt"]["mode"] == "scenario"
+    assert c.get(f"/api/questions/{child['id']}").json()["eval_points"] == ["选 AOF everysec"]
+    assert c.get(f"/api/questions/{q['id']}").json()["children"][0]["id"] == child["id"]
+
+
+def test_interview_flow(c):
+    s = c.post("/api/interview/start", json={"kind": "knowledge", "role": "后端"}).json()
+    for i in range(3):
+        r = c.post(f"/api/interview/{s['session_id']}/answer", json={"answer": f"RDB 回答{i}"}).json()
+        assert r["evaluation"]["status"] == "ok"
+    assert r["action"] == "next"   # model kept asking to follow up; capped at MAX_FOLLOW_UPS
+    end = c.post(f"/api/interview/{s['session_id']}/end").json()
+    assert end["finished"] and end["gaps"] and len(end["turns"]) == 7
+    assert c.get("/api/questions?origin=interview").json()
+    assert c.get("/api/interview/sessions").json()[0]["avg_score"] == pytest.approx(3.5)
+
+
+def test_reflection_gap_card(c):
+    a = c.post("/api/speech/reflect", json={"transcript": "我讲了 RDB，没讲 AOF"}).json()
+    rec = c.post("/api/reflections", json={"transcript": "我讲了 RDB，没讲 AOF", "analysis": a}).json()
+    gap = [g for g in c.get("/api/gaps?confirmed=false").json() if g["origin"] == "reflection"][0]
+    assert gap["origin_id"] == rec["id"]
+    assert c.post(f"/api/gaps/{gap['id']}/card-draft").status_code == 400   # must confirm first
+    c.put(f"/api/gaps/{gap['id']}", json={"confirmed": True})
+    draft = c.post(f"/api/gaps/{gap['id']}/card-draft").json()
+    card = c.post("/api/cards", json={**draft, "answer": draft["answer"] + "（已编辑）"}).json()
+    assert card["gap_id"] == gap["id"] and card["sources"]
+
+
+def test_cards(c):
+    card = c.post("/api/cards", json={"question": "Q", "answer": "A"}).json()
+    assert card["policy"] == "sm2" and any(x["id"] == card["id"] for x in c.get("/api/cards/due").json())
+    intervals = [c.post(f"/api/cards/{card['id']}/rate", json={"rating": "good"}).json()["interval"] for _ in range(3)]
+    assert intervals == [1, 6, 15]
+    fixed = c.post("/api/cards", json={"question": "Q2", "answer": "A2", "policy": "fixed"}).json()
+    for _ in range(3):
+        f = c.post(f"/api/cards/{fixed['id']}/rate", json={"rating": "easy"}).json()
+    assert f["status"] == "retired"
+    gen = c.post("/api/cards/generate", json={"topic": "AOF 重写", "count": 1}).json()
+    assert gen[0]["sources"]
+    n = c.post("/api/cards/import", files={"file": ("a.csv", "问1,答1\n问2,答2,集合X\n".encode())}).json()
+    assert n["imported"] == 2 and "问2,答2,集合X" in c.get("/api/cards/export").text
+    assert c.get("/api/cards/stats").json()["retired"] == 1
+
+
+def test_sm2_against_reference():
+    card = {"policy": "sm2", "ef": 2.5, "reps": 2, "interval": 6, "streak": 0}
+    out = srs.schedule(card, "hard", datetime(2026, 1, 1, tzinfo=timezone.utc))
+    assert out["interval"] == 15 and out["ef"] == pytest.approx(2.36)   # EF' = 2.5 + 0.1 - 2*(0.08+2*0.02)
+    assert srs.schedule(card, "again")["ef"] == 2.5 and srs.schedule(card, "again")["interval"] == 1
+
+
+def test_usage_and_delete(c):
+    u = {x["task"]: x for x in c.get("/api/usage").json()}
+    assert u["evaluate"]["calls"] >= 1 and u["evaluate"]["failures"] >= 2
+    assert c.delete("/api/me").json()["ok"]
+    assert c.get("/api/kb/docs").json() == [] and c.get("/api/cards").json() == []
