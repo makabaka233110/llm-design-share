@@ -269,8 +269,7 @@ async def cmd_hints(a):
     await load_passages(a.data)
     items = []
     for s in jl(a.data / "hint_sequences.jsonl"):
-        db.delete_user(USER + "-h")
-        user = USER + "-h"
+        user = f"{USER}-h-{s['id']}"  # one learner per sequence (deleting a user would also drop its usage log)
         # history (strictly earlier in time than the later tasks)
         for h in s["history"]:
             q = add_question(h)

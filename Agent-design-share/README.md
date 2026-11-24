@@ -97,12 +97,12 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 .venv/bin/python eval/run.py stats eval/results/evaluator_rating.csv --metric usefulness --a none --b weighted
 ```
 
-数据集、检索实验结果、数据格式和标注指南见 `eval/README.md`。`eval/data/` 是按 proposal §4 规格构建的数据集（200 段资料、120 个概念族）；`eval/sample/` 只是演示格式的小样例。
+数据集、检索实验结果、真实模型（DeepSeek flash）运行结果、数据格式和标注指南见 `eval/README.md`。`eval/data/` 是按 proposal §4 规格构建的数据集（200 段资料、120 个概念族）；`eval/sample/` 只是演示格式的小样例。
 
 ## 测试
 
 ```bash
-.venv/bin/python -m pytest -q        # 13 个测试：真实检索 + 脚本化的假 LLM，以及实验脚本的统计函数
+.venv/bin/python -m pytest -q        # 14 个测试：真实检索 + 脚本化的假 LLM，以及实验脚本的统计函数
 BASE=http://127.0.0.1:8000/ python tests/ui_flows.py   # 用真实 Chrome 点完 12 条主要流程（需要 pip install playwright）
 ```
 

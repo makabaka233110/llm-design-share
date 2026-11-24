@@ -21,6 +21,8 @@ PRICE_IN, PRICE_OUT = float(os.getenv("LLM_PRICE_IN") or 0), float(os.getenv("LL
 
 def cost(tokens_in: int | None, tokens_out: int | None) -> float:
     return round(((tokens_in or 0) * PRICE_IN + (tokens_out or 0) * PRICE_OUT) / 1e6, 4)
+# extra request fields for OpenAI-compatible services, e.g. DeepSeek: {"thinking": {"type": "disabled"}}
+EXTRA_BODY = json.loads(os.getenv("LLM_EXTRA_BODY") or "{}")
 MAX_RETRIES = 1  # one corrective retry after invalid structured output
 
 _client = None
@@ -52,7 +54,7 @@ def complete(system: str, messages: list[dict], max_tokens: int) -> tuple[str, i
         r = client.messages.create(model=MODEL, system=system, messages=messages, max_tokens=max_tokens)
         return r.content[0].text, r.usage.input_tokens, r.usage.output_tokens
     r = client.chat.completions.create(
-        model=MODEL, max_tokens=max_tokens,
+        model=MODEL, max_tokens=max_tokens, extra_body=EXTRA_BODY or None,
         messages=[{"role": "system", "content": system}, *messages])
     u = r.usage
     return r.choices[0].message.content or "", getattr(u, "prompt_tokens", 0), getattr(u, "completion_tokens", 0)
