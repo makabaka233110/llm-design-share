@@ -66,6 +66,16 @@ class EvalOut(BaseModel):
         return self
 
 
+def overall(scores: dict | None) -> float | None:
+    """Overall score shown to the learner: mean of the four dimensions, but a wrong core concept
+    (correctness <= 2) caps it at the correctness score, so fluent wording cannot lift a wrong answer to 3.5
+    (迭代记录.md; checked offline on the DeepSeek runs before it went in)."""
+    if not scores:
+        return None
+    m = sum(scores.values()) / len(scores)
+    return min(m, scores["correctness"]) if scores.get("correctness", 5) <= 2 else m
+
+
 EVAL_SYSTEM = ("你是严谨的学习评估者。事实判断只依据给定参考资料；参考资料未覆盖的论断不要判错，"
                "而是说明无法核实。只返回 JSON。")
 
@@ -136,7 +146,7 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
 标注「用于核对」的资料是按回答中的某句话检索到的，若它与那句话无关，该论断视为无法核实，不能据此判对错；
 若参考资料不足以判断正确性，status 设为 "uncertain"、scores 设为 null 并在 reason 说明；
 没有历史作答时 recurring 和 resolved 为空数组。"""
-        if use_calc:
+        if checks:  # only when the answer has calculations: other prompts stay exactly as before
             prompt += """
 数值计算交给程序：不要自己心算或重算；回答里算式的结果以「程序核算」为准。你只评判公式选择、口径和推理是否合理。
 评语中需要写出数值时，写成「算式 = 结果」，系统会用程序复核。"""

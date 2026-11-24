@@ -216,7 +216,7 @@ async def cmd_evaluator(a):
             att = agent.record_attempt(USER, q["id"], c["answer"], "eval")
             ev = await agent.evaluate(USER, q, att, kind=q["kind"], evidence_mode=cond, history_aware=False,
                                       use_calc=a.calc == "on")
-            avg = mean(list(ev["scores"].values())) if ev["scores"] else None
+            avg = agent.overall(ev["scores"])
             out.append({"case": c["id"], "family": c["family"], "domain": c.get("domain", ""),
                         "answer_type": c["answer_type"], "flaw": c.get("flaw", ""), "condition": cond, "status": ev["status"], "avg": avg,
                         "scores": ev["scores"], "feedback": ev["feedback"], "evidence": ev["evidence"]})

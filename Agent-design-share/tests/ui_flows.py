@@ -23,7 +23,8 @@ with sync_playwright() as p:
     pg.goto(B + "#kb"); pg.wait_for_selector("#kb-list .item")
     def kb_add():
         pg.click("text=+ 添加资料"); pg.fill("#d-title", "CAP 定理"); pg.fill("#d-topic", "分布式")
-        pg.fill("#d-body", "CAP 定理指出网络分区时无法同时保证一致性和可用性。"); pg.click("#kb-editor button.primary")
+        pg.fill("#d-body", "CAP 定理指出网络分区时无法同时保证一致性和可用性。"); pg.check("#d-rev")
+        pg.click("#kb-editor button.primary")
         pg.wait_for_selector("text=CAP 定理", timeout=60000)
     step("kb add doc", kb_add)
     def kb_search():

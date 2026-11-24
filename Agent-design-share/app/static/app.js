@@ -48,7 +48,9 @@ const KIND = { knowledge: '专业知识', behavioral: '行为', case: '案例分
 const ORIGIN = { manual: '手动', interview: '模拟面试', scenario: '情境题', reflection: '复盘', eval: '实验' };
 const MODE = { feynman: '讲解', interview: '面试', scenario: '情境题', eval: '实验' };
 const DIM = { correctness: '正确性', coverage: '覆盖度', reasoning: '推理', clarity: '清晰度' };
-const avg = s => s ? (Object.values(s).reduce((a, b) => a + b, 0) / 4).toFixed(1) : null;
+// same rule as agent.overall: a wrong core concept (correctness <= 2) caps the overall score
+const avg = s => { if (!s) return null; const m = Object.values(s).reduce((a, b) => a + b, 0) / 4;
+  return (s.correctness <= 2 ? Math.min(m, s.correctness) : m).toFixed(1); };
 const empty = (title, hint) => h`<div class="empty"><b>${title}</b>${hint}</div>`;
 const seg = (id, opts, on) => h`<div class="seg" id="${id}">${Object.entries(opts).map(([k, v]) =>
   h`<button data-v="${k}" class="${k === on ? 'on' : ''}" onclick="segPick(this)">${v}</button>`)}</div>`;

@@ -87,10 +87,10 @@ def _norm(concept: str) -> str:
 
 
 def _latest_score(qid: int) -> float | None:
-    """Average rubric score of the latest valid evaluation of the question's latest attempt."""
+    """Overall score (agent.overall) of the latest valid evaluation of the question's latest attempt."""
     e = db.row("""SELECT e.scores FROM evaluations e JOIN attempts a ON a.id=e.attempt_id
                   WHERE a.question_id=? AND e.status='ok' ORDER BY a.id DESC, e.id DESC LIMIT 1""", qid)
-    return round(sum(e["scores"].values()) / 4, 1) if e else None
+    return round(agent.overall(e["scores"]), 1) if e else None
 
 
 def _with_scores(qs: list[dict]) -> list[dict]:

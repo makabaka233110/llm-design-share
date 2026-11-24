@@ -188,8 +188,10 @@ def test_claims_concepts_related_gap_practice(c):
                json={"answer": "为了同步双方的序列号。另外机会成本是放弃的次优选择的价值。"}).json()
     ev = r["evaluation"]["evidence"]
     claimed = [e for e in ev if e["claim"]]
-    # E1-E3 come from the question; each claim adds its best passage (if new), labelled with the claim
-    assert claimed and all(e["eid"] not in ("E1", "E2", "E3") for e in claimed)
+    # question passages first (at most 3, off-topic ones dropped), then one passage per claim, labelled with it
+    n_q = len(ev) - len(claimed)
+    assert claimed and 1 <= n_q <= 3 and all(int(e["eid"][1:]) > n_q for e in claimed)
+    assert all(e["title"] != "UDP" for e in ev)  # retrieved for the question, but off-topic: not shown
     assert any(e["title"] == "机会成本" and "机会成本" in e["claim"] for e in claimed)
     assert "用于核对" in PROMPTS[-1] and "## 题库中的相关问题" in PROMPTS[-1]
     # concept view: original question and its scenario are grouped, weakest concept first
@@ -271,3 +273,20 @@ def test_program_arithmetic(c):
     assert "## 程序核算" in p and "= 120" in p and "不一致" in p
     assert ev["feedback"]["calc"] == [{"text": "30×0.8÷(1−0.8)=240", "expr": "30×0.8÷(1−0.8)", "claimed": "240",
                                        "value": "120", "ok": False}]
+
+
+def test_no_relevant_material_is_uncertain(c):
+    # retrieval always returns something; below the relevance floor it is not evidence, so no score
+    c.post("/api/kb/docs", json={"title": "Redis 主从复制", "body": "Redis 从节点首次连接时全量同步，之后增量同步。",
+                                 "reviewed": True})
+    q = c.post("/api/questions", json={"text": "光合作用的暗反应在哪里进行？", "concept": "光合作用"}).json()
+    ev = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "在叶绿体基质中进行。"}).json()["evaluation"]
+    assert ev["status"] == "uncertain" and ev["scores"] is None and ev["evidence"] == []
+
+
+def test_overall_caps_wrong_core_concept():
+    from app import agent
+    assert agent.overall({"correctness": 5, "coverage": 4, "reasoning": 4, "clarity": 5}) == 4.5
+    # fluent but wrong: 2 + 4 + 4 + 4 would average 3.5
+    assert agent.overall({"correctness": 2, "coverage": 4, "reasoning": 4, "clarity": 4}) == 2
+    assert agent.overall(None) is None

@@ -213,21 +213,38 @@ def claims(answer: str) -> list[str]:
     return [c.strip() for c in parts if re.search(r"\w", c)]
 
 
+# relevance floors (bge-m3 cosine), chosen on eval/data dev and reported on test by eval/claim_threshold.py:
+# question top-k keeps recall >= 0.95, claims trade a little recall for precision (迭代记录.md)
+EVIDENCE_FLOOR = 0.50
+CLAIM_FLOOR = 0.55
+CLAIM_CANDIDATES = 3  # per claim: the most similar of the top 3 is used
+MIN_CLAIM_CHARS = 6
+
+
 async def evidence(user: str, question: str, answer: str = "", k: int = 3, mode: str = "weighted",
                    domain_id: int | None = None) -> list[dict]:
     """Evaluator evidence (reviewed docs only; generated or unreviewed text never scores answers).
 
     1. Start from the question + concept: top-k reranked passages (E1..Ek).
-    2. Check specific claims: for every sentence of the answer, its best passage is added
+    2. Check specific claims: for every sentence of the answer, its most similar passage among the top 3 is added
        (E{k+1}..) unless already present, labelled with the claim it was retrieved for.
+    Passages less similar (bge-m3 cosine) than the floors are dropped; a knowledge question left with no
+    passage is then "uncertain" instead of being scored against unrelated material.
     """
-    top = await retrieve(user, question, k, mode, reviewed_only=True, domain_id=domain_id)
+    # retrieval always returns *something*; passages below the floor are off-topic and are not shown as evidence
+    top = [h for h in await retrieve(user, question, k, mode, reviewed_only=True, domain_id=domain_id)
+           if await similarity(question, h["content"]) >= EVIDENCE_FLOOR]
     seen = {h["id"] for h in top}
     for claim in claims(answer):
-        for h in await retrieve(user, claim, 1, mode, reviewed_only=True, domain_id=domain_id):
-            if h["id"] not in seen:
-                seen.add(h["id"])
-                top.append({**h, "claim": claim})
+        if len(re.findall(r"\w", claim)) < MIN_CLAIM_CHARS:
+            continue  # fragments ("看配置") match anything and nothing
+        # the fused rank alone can put an off-topic passage first (RRF ties): take the closest of a few
+        cands = [(await similarity(claim, h["content"]), h)
+                 for h in await retrieve(user, claim, CLAIM_CANDIDATES, mode, reviewed_only=True, domain_id=domain_id)]
+        sim, h = max(cands, key=lambda x: x[0], default=(0, None))
+        if h and sim >= CLAIM_FLOOR and h["id"] not in seen:
+            seen.add(h["id"])
+            top.append({**h, "claim": claim})
     for i, h in enumerate(top, 1):
         h["eid"] = f"E{i}"
     return top
@@ -240,10 +257,19 @@ def cite(passages: list[dict]) -> list[dict]:
              "final_score": p["final_score"], "claim": p.get("claim", "")} for p in passages]
 
 
-# ── related questions (question bank; context only, never scoring evidence) ──
-
 _qvec: dict[str, list[float]] = {}
 
+
+async def similarity(a: str, b: str) -> float:
+    """bge-m3 cosine similarity of two texts (vectors are unit-norm); embeddings are cached."""
+    missing = [t for t in {a, b} if t not in _qvec]
+    if missing:
+        for t, v in zip(missing, await mem()._embedder.embed(missing)):
+            _qvec[t] = v
+    return sum(x * y for x, y in zip(_qvec[a], _qvec[b]))
+
+
+# ── related questions (question bank; context only, never scoring evidence) ──
 
 async def related_questions(user: str, text: str, exclude: set[int], k: int = 3) -> list[dict]:
     """Nearest questions in the learner's bank by bge-m3 cosine similarity."""
