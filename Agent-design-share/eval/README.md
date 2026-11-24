@@ -33,6 +33,21 @@
 
 整体：单次评估平均 3.7 秒，所有实验 0 次调用失败（scenarios 的无效输出靠一次纠错重试恢复），586 次调用，总费用约 $0.44（按高峰价 $0.3 / $1.2 每百万 token 计算）。逐条分析见 `迭代记录.md` 第 2–6 条。
 
+### 计算交给程序（`eval/data_calc/`，18 题 × 3 种回答）
+
+```bash
+.venv/bin/python eval/data_calc/build.py      # 重新生成并用程序核验所有数字
+.venv/bin/python eval/run.py evaluator --data eval/data_calc --conditions weighted --calc on   # 或 --calc off
+```
+
+| | 关闭 | 开启 |
+|---|---|---|
+| 算错的回答，正确性仍给 ≥ 4 分 | 9/18、7/18 | 0/18、0/18 |
+| 全对的回答，正确性平均 | 4.86 | 5.00 |
+| 方法错的回答，平均分 | 1.68 / 1.79 | 1.79 / 1.79 |
+
+DeepSeek flash，每个条件跑 2 次。详见 `迭代记录.md`「★ 计算交给程序」。
+
 ### 检索实验结果（test 80 题，`--split test`）
 
 | 设置 | Recall@3 | nDCG@3 | weak@3 |

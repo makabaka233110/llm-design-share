@@ -1,0 +1,18 @@
+{"id": "bus-c01-p", "domain": "business", "topic": "顾客终身价值与获客成本", "title": "顾客终身价值与获客成本", "text": "顾客终身价值（CLV）是一位顾客在整个关系期间贡献的利润现值。简化估算：CLV = 每期毛利 × 留存率 ÷ (1 + 折现率 − 留存率)。获客成本（CAC）是获取一位新顾客的平均营销与销售支出。订阅制企业常以 CLV/CAC 大于 3 作为健康参考。", "source": "教材常识", "quality": "good"}
+{"id": "bus-c02-p", "domain": "business", "topic": "需求价格弹性", "title": "需求价格弹性与总收益", "text": "需求价格弹性 = 需求量变化的百分比 ÷ 价格变化的百分比（取绝对值）。弹性大于 1 为富有弹性，此时提价会使总收益下降；弹性小于 1 为缺乏弹性，提价会使总收益增加。总收益 = 价格 × 销量。", "source": "教材常识", "quality": "good"}
+{"id": "bus-c03-p", "domain": "business", "topic": "净现值", "title": "净现值（NPV）", "text": "净现值 = 各期现金流按折现率折现后的现值之和 − 初始投资。第 t 年的现金流 C 的现值为 C ÷ (1 + r)^t。NPV 大于 0 的项目值得投资。", "source": "教材常识", "quality": "good"}
+{"id": "bus-c04-p", "domain": "business", "topic": "加权平均资本成本", "title": "加权平均资本成本（WACC）", "text": "WACC = 股权占比 × 股权成本 + 债务占比 × 债务成本 × (1 − 所得税率)。债务利息可以税前扣除，所以债务成本要按税后计算。", "source": "教材常识", "quality": "good"}
+{"id": "bus-c05-p", "domain": "business", "topic": "盈亏平衡点", "title": "盈亏平衡分析", "text": "盈亏平衡销量 = 固定成本 ÷ (单价 − 单位变动成本)。单价减单位变动成本称为单位边际贡献，销量超过盈亏平衡点才开始盈利。", "source": "教材常识", "quality": "good"}
+{"id": "bus-c06-p", "domain": "business", "topic": "复利", "title": "复利与终值", "text": "复利终值 = 本金 × (1 + 利率)^年数，每年的利息计入本金继续生息；单利终值 = 本金 × (1 + 利率 × 年数)，利息不再生息。", "source": "教材常识", "quality": "good"}
+{"id": "cmp-c01-p", "domain": "computing", "topic": "平均访问时间", "title": "缓存与平均访问时间", "text": "平均访问时间 = 命中时间 + 未命中率 × 未命中代价。未命中时先查缓存、再访问下层存储，所以命中时间对每次访问都要计入。", "source": "教材常识", "quality": "good"}
+{"id": "cmp-c02-p", "domain": "computing", "topic": "带宽与传输时间", "title": "带宽单位与传输时间", "text": "网络带宽通常以比特每秒（bps）计，文件大小通常以字节（Byte）计，1 字节 = 8 比特。传输时间 = 文件比特数 ÷ 带宽。", "source": "教材常识", "quality": "good"}
+{"id": "cmp-c03-p", "domain": "computing", "topic": "二分查找", "title": "二分查找的比较次数", "text": "二分查找每次把区间缩小一半，在 n 个有序元素中最多比较约 ⌈log₂(n+1)⌉ 次。2^10=1024，2^20 约为 104.9 万。", "source": "教材常识", "quality": "good"}
+{"id": "cmp-c04-p", "domain": "computing", "topic": "利特尔法则", "title": "利特尔法则与并发数", "text": "利特尔法则：系统中的平均请求数 = 平均到达率 × 平均停留时间。估算服务需要的并发数时，并发数 = QPS × 平均响应时间（秒）。", "source": "教材常识", "quality": "good"}
+{"id": "cmp-c05-p", "domain": "computing", "topic": "哈希表扩容", "title": "HashMap 的负载因子与扩容", "text": "HashMap 的扩容阈值 = 容量 × 负载因子，元素个数超过阈值时扩容为原来的 2 倍。默认初始容量 16、负载因子 0.75。", "source": "教材常识", "quality": "good"}
+{"id": "cmp-c06-p", "domain": "computing", "topic": "冗余与可用性", "title": "串联与并联系统的可用性", "text": "串联系统要求每个组件都可用，可用性 = 各组件可用性之积；并联（冗余）系统只要一个组件可用即可，可用性 = 1 − 各组件不可用概率之积。", "source": "教材常识", "quality": "good"}
+{"id": "sci-c01-p", "domain": "science", "topic": "自由落体", "title": "自由落体运动", "text": "自由落体是初速度为零、只受重力的匀加速运动。下落高度 h = ½ g t²，速度 v = g t，g 取 10 m/s²。", "source": "教材常识", "quality": "good"}
+{"id": "sci-c02-p", "domain": "science", "topic": "电功率与欧姆定律", "title": "电功率与欧姆定律", "text": "电功率 P = U I，欧姆定律 I = U ÷ R，所以纯电阻用电器的电阻 R = U ÷ I = U² ÷ P。", "source": "教材常识", "quality": "good"}
+{"id": "sci-c03-p", "domain": "science", "topic": "物质的量", "title": "物质的量与摩尔质量", "text": "物质的量 n = 质量 m ÷ 摩尔质量 M。水（H₂O）的摩尔质量 = 2×1 + 16 = 18 g/mol，每个水分子含 2 个氢原子。", "source": "教材常识", "quality": "good"}
+{"id": "sci-c04-p", "domain": "science", "topic": "浮力", "title": "阿基米德原理", "text": "浸在液体中的物体受到的浮力等于它排开液体所受的重力：F浮 = ρ液 × g × V排。水的密度 1000 kg/m³，g 取 10 N/kg。", "source": "教材常识", "quality": "good"}
+{"id": "sci-c05-p", "domain": "science", "topic": "动能", "title": "动能与动量", "text": "动能 Ek = ½ m v²，单位焦耳；动量 p = m v，单位 kg·m/s。两者是不同的物理量，不能混用。", "source": "教材常识", "quality": "good"}
+{"id": "sci-c06-p", "domain": "science", "topic": "遗传概率", "title": "孟德尔分离定律与概率", "text": "Aa × Aa 的后代中 aa 的概率为 1/4。每个孩子的基因型相互独立，多个独立事件同时发生的概率等于各自概率之积。", "source": "教材常识", "quality": "good"}

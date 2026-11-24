@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app import db, llm, retrieval
+from app import calc, db, llm, retrieval
 
 RUBRIC_VERSION = "r1"
 DIMENSIONS = ("correctness", "coverage", "reasoning", "clarity")
@@ -83,11 +83,14 @@ def _history_text(question_id: int, before_attempt: int) -> str:
 
 
 async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "knowledge",
-                   evidence_mode: str = "weighted", history_aware: bool = True) -> dict:
-    """Evaluate one attempt and store the result. evidence_mode: weighted|hybrid|none."""
+                   evidence_mode: str = "weighted", history_aware: bool = True, use_calc: bool = True) -> dict:
+    """Evaluate one attempt and store the result. evidence_mode: weighted|hybrid|none.
+    use_calc: arithmetic is computed by the program (app/calc.py), the model only judges the method."""
     spec, dom = KINDS[kind], _domain(question["domain_id"])
     # domain criteria are part of the rubric: a changed criterion is a different rubric version
     rubric = RUBRIC_VERSION + (f"+{hashlib.sha1(dom['criteria'].encode()).hexdigest()[:6]}" if dom["criteria"] else "")
+    rubric += "+calc" if use_calc else ""
+    checks = calc.check(attempt["answer"]) if use_calc else []
     passages = [] if evidence_mode == "none" else await retrieval.evidence(
         user, f"{question['text']} {question['concept']}", attempt["answer"], mode=evidence_mode,
         domain_id=question["domain_id"])
@@ -112,6 +115,8 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
 ## 学习者回答（第 {attempt['version']} 版）
 {attempt['answer']}
 
+{('## 程序核算（回答中的算式已由程序计算，结果以此为准）' + chr(10) + calc.as_prompt(checks)) if checks else ''}
+
 {('## 历史作答（旧→新）\n' + history) if history else ''}
 
 {('## 题库中的相关问题（仅供参考：提示面试官可能追问的方向，不作为评分依据）\n' + chr(10).join('- ' + r['text'] for r in related)) if related else ''}
@@ -131,6 +136,10 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
 标注「用于核对」的资料是按回答中的某句话检索到的，若它与那句话无关，该论断视为无法核实，不能据此判对错；
 若参考资料不足以判断正确性，status 设为 "uncertain"、scores 设为 null 并在 reason 说明；
 没有历史作答时 recurring 和 resolved 为空数组。"""
+        if use_calc:
+            prompt += """
+数值计算交给程序：不要自己心算或重算；回答里算式的结果以「程序核算」为准。你只评判公式选择、口径和推理是否合理。
+评语中需要写出数值时，写成「算式 = 结果」，系统会用程序复核。"""
         try:
             out = await asyncio.to_thread(llm.chat_json, "evaluate", EVAL_SYSTEM, prompt, EvalOut, user)
             ids = {p["eid"] for p in passages}
@@ -138,7 +147,11 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
                 p.evidence = [e for e in p.evidence if e in ids]
                 if p.quote and p.quote not in attempt["answer"]:
                     p.quote = ""  # drop quotes that are not the learner's words
+            if use_calc:
+                _recheck(out, checks)
             fb = out.model_dump(exclude={"status", "scores"})
+            if use_calc:
+                fb["calc"] = checks
             result.update(status=out.status, scores=out.scores, feedback=fb)
         except llm.LLMError as e:
             result.update(status="unavailable", feedback={"reason": str(e)})
@@ -149,6 +162,22 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
                              rubric_version=rubric, model=llm.MODEL)
     result.update(rubric_version=rubric, model=llm.MODEL, evidence_mode=evidence_mode, history_aware=int(history_aware))
     return result
+
+
+def _recheck(out: EvalOut, checks: list[dict]) -> None:
+    """The model's own arithmetic is not trusted either: annotate wrong results in its feedback, and flag
+    misconceptions that quote a calculation the program found correct."""
+    def fix(t: str) -> str:
+        bad = [c for c in calc.check(t) if not c["ok"]]
+        return t + "".join(f"（程序核算：{c['expr']} = {c['value']}，评语中的「{c['claimed']}」有误）" for c in bad)
+    out.reason = fix(out.reason)
+    out.revisions = [fix(t) for t in out.revisions]
+    for p in out.strengths + out.omissions + out.misconceptions:
+        p.text = fix(p.text)
+    for p in out.misconceptions:
+        right = [c for c in checks if c["ok"] and p.quote and (c["text"] in p.quote or p.quote in c["text"])]
+        if right:
+            p.text += f"（程序核算：所引算式 {right[0]['expr']} = {right[0]['value']}，计算本身正确）"
 
 
 def record_attempt(user: str, question_id: int, answer: str, mode: str) -> dict:

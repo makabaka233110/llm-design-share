@@ -214,10 +214,11 @@ async def cmd_evaluator(a):
         for cond in a.conditions.split(","):
             q = add_question(c)
             att = agent.record_attempt(USER, q["id"], c["answer"], "eval")
-            ev = await agent.evaluate(USER, q, att, kind=q["kind"], evidence_mode=cond, history_aware=False)
+            ev = await agent.evaluate(USER, q, att, kind=q["kind"], evidence_mode=cond, history_aware=False,
+                                      use_calc=a.calc == "on")
             avg = mean(list(ev["scores"].values())) if ev["scores"] else None
             out.append({"case": c["id"], "family": c["family"], "domain": c.get("domain", ""),
-                        "answer_type": c["answer_type"], "condition": cond, "status": ev["status"], "avg": avg,
+                        "answer_type": c["answer_type"], "flaw": c.get("flaw", ""), "condition": cond, "status": ev["status"], "avg": avg,
                         "scores": ev["scores"], "feedback": ev["feedback"], "evidence": ev["evidence"]})
             fb = ev["feedback"]
             # what the learner reads, minus the score, status badge and evidence ids (they would reveal the condition
@@ -258,6 +259,12 @@ async def cmd_evaluator(a):
             flawed = mean([r["avg"] for r in ok if r["answer_type"] != "strong"])
             print(f"{cond:<9} {dom:<12} {len(rs):>3} {len(ok)/len(rs):>6.2f} {sum(r['status']=='uncertain' for r in rs):>6} "
                   f"{strong:>7.2f} {flawed:>7.2f} {strong-flawed:>6.2f}")
+    flaws = sorted({r["flaw"] for r in out if r["flaw"]})
+    if len(flaws) > 1:  # e.g. eval/data_calc: arith (wrong arithmetic) vs method (wrong formula)
+        for cond in a.conditions.split(","):
+            print(f"{cond:<9} by flaw: " + "  ".join(
+                f"{f or 'strong'} {mean([r['avg'] for r in out if r['condition'] == cond and r['flaw'] == f]):.2f}"
+                for f in ["", *flaws]))
     usage(a.out)
 
 
@@ -528,6 +535,8 @@ def main():
         s.add_argument("--conditions", default="weighted,none", help="evaluator: evidence modes to compare")
         s.add_argument("--subset", type=int, default=40, help="evaluator: size of the balanced blind subset")
         s.add_argument("--subset-file", help="evaluator: fixed list of case ids for the blind subset")
+        s.add_argument("--calc", choices=("on", "off"), default="on",
+                       help="evaluator: arithmetic computed by the program (app/calc.py) or left to the model")
         s.add_argument("--n", type=int, default=20, help="cards: number of cards to generate")
         s.add_argument("--feedback-rounds", type=int, default=1,
                        help="retrieval: rounds of simulated useful/not-useful feedback on dev queries (0 = off)")

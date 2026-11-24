@@ -110,7 +110,9 @@ function evalView(ev, { questionId, compact = false } = {}) {
   if (ev.status === 'ok') head = h`<div class="row between"><b>综合 ${avg(ev.scores)} / 5</b><span class="badge ok">有依据评分</span></div><div style="margin-top:10px">${meters(ev.scores)}</div>`;
   else if (ev.status === 'uncertain') head = h`<div class="notice warn"><b>无法确定评分</b>　${fb.reason || ''}</div>`;
   else head = h`<div class="notice bad"><b>评估不可用</b>　${fb.reason || ''}</div>`;
-  return h`<div class="fade">${head}
+  const calc = fb.calc && fb.calc.length ? h`<h3>程序核算</h3><ul class="points ${fb.calc.every(c => c.ok) ? 'ok' : 'bad'}">${fb.calc.map(c => h`<li>${c.expr} = <b>${c.value}</b>
+      <span class="muted tiny">你写的是 ${c.claimed}，${c.ok ? '计算正确' : '算错了'}</span></li>`)}</ul>` : '';
+  return h`<div class="fade">${head}${calc}
     ${pts('做得好', fb.strengths, 'ok')}${pts('遗漏', fb.omissions, 'warn', true)}${pts('误解', fb.misconceptions, 'bad', true)}
     ${strs('修改建议', fb.revisions)}${strs('反复出现的问题', fb.recurring, 'bad')}${strs('已纠正', fb.resolved, 'ok')}
     ${!compact && ev.evidence && ev.evidence.length ? h`<h3>证据</h3><div class="stack">${ev.evidence.map(e => h`<div class="evidence">

@@ -34,6 +34,7 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 | `app/retrieval.py` | 参考库：Markdown + Memsearch（bge-m3 ONNX + Milvus Lite）。四种检索模式 `bm25 / dense / hybrid / weighted`，优先级重排公式 (1) |
 | `app/agent.py` | 所有 LLM 工具及其 prompt：评估、面试官、复盘、提示与偏好归纳、情境题生成与检查、闪卡生成 |
 | `app/llm.py` | 唯一的模型入口：OpenAI 兼容 / Anthropic，JSON 校验 + 1 次纠错重试，记录 token 与延迟 |
+| `app/calc.py` | 程序核算：回答和评语里的「算式 = 结果」由程序计算，模型只判断方法 |
 | `app/srs.py` | SM-2 与固定 1/3/7 天两种调度 |
 | `app/api/*.py` | HTTP 接口（按模块拆分），`X-User` 区分学习者 |
 | `app/static/` | 单页前端（原生 JS，无构建步骤、无外部 CDN） |
@@ -48,6 +49,7 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 | `final = hybrid × (1 + 0.1 × priority)`，priority ∈ [0,5]，默认 2，有用 +0.5，没用 −1 | `retrieval.retrieve(mode="weighted")`；候选池逐步翻倍，直到池外的段落不可能进入前 k；`hybrid` 模式即不加权基线 |
 | 评估器取重排后前 3 条已审核资料，并逐条核对回答中的论断 | `retrieval.evidence()`：题目 + 概念检索取前 3 条（E1–E3）；回答按句拆成论断，每句再检索 1 条（E4…），标注「用于核对」哪句话 |
 | 检索笔记、面试问题与审核资料 | 已审核资料是评分证据；题库里语义最近的问题（bge-m3）作为「相关问题」传给评估器和详情页，只作参考，不作为评分依据 |
+| （新增）计算由程序完成 | 回答中的算式先由 `calc.py` 计算，结果作为事实交给评估器；评语里模型写的数字也由程序复核。计算题测试集上，算术错误的漏判从 9/18 降到 0/18 |
 | 证据不足或输出无效时不编造分数 | `status = uncertain / unavailable`，`scores = null` |
 | 1–5 分 rubric（正确性、覆盖度、推理、清晰度），反馈关联原话与证据编号 | `agent.evaluate`；引用若不在原文中、证据编号若不存在，都会被丢弃 |
 | 存储 rubric 与模型版本 | `evaluations.rubric_version / model / evidence_mode / history_aware`；领域评分标准变了，rubric 版本号随之改变（`r1+<哈希>`），对比时条件不同会提示不可直接比较 |
@@ -102,7 +104,7 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 ## 测试
 
 ```bash
-.venv/bin/python -m pytest -q        # 14 个测试：真实检索 + 脚本化的假 LLM，以及实验脚本的统计函数
+.venv/bin/python -m pytest -q        # 19 个测试：真实检索 + 脚本化的假 LLM，以及实验脚本的统计函数
 BASE=http://127.0.0.1:8000/ python tests/ui_flows.py   # 用真实 Chrome 点完 12 条主要流程（需要 pip install playwright）
 ```
 

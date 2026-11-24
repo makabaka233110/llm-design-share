@@ -101,7 +101,7 @@ def test_feynman_history_and_evaluation(c):
     q = c.post("/api/questions", json={"text": "Redis 有哪些持久化方式？", "concept": "Redis 持久化"}).json()
     r1 = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "RDB 快照"}).json()
     ev = r1["evaluation"]
-    assert ev["status"] == "ok" and ev["rubric_version"] == "r1" and 1 <= len(ev["evidence"]) <= 3
+    assert ev["status"] == "ok" and ev["rubric_version"] == "r1+calc" and 1 <= len(ev["evidence"]) <= 3
     assert ev["feedback"]["strengths"][0]["evidence"] == ["E1"]      # unknown id E9 dropped
     assert ev["feedback"]["omissions"][0]["quote"] == ""              # invented quote dropped
     r2 = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "RDB 和 AOF"}).json()
@@ -260,3 +260,14 @@ def test_review_fixes(c):
         assert ev2["status"] == "unavailable" and ev2["scores"] is None
     finally:
         llm.complete, llm.MODEL = saved, old_model
+
+
+def test_program_arithmetic(c):
+    # arithmetic in the answer is computed by the program and given to the evaluator as fact
+    c.post("/api/kb/docs", json={"title": "CLV", "body": "CLV = 毛利×留存率÷(1−留存率)。", "reviewed": True})
+    q = c.post("/api/questions", json={"text": "这个用户的 CLV 是多少？", "concept": "CLV"}).json()
+    ev = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "30×0.8÷(1−0.8)=240 元"}).json()["evaluation"]
+    p = next(x for x in reversed(PROMPTS) if "## 学习者回答" in x)
+    assert "## 程序核算" in p and "= 120" in p and "不一致" in p
+    assert ev["feedback"]["calc"] == [{"text": "30×0.8÷(1−0.8)=240", "expr": "30×0.8÷(1−0.8)", "claimed": "240",
+                                       "value": "120", "ok": False}]
