@@ -252,7 +252,7 @@ function compare() {
   const picked = S.q.attempts.filter(a => S.cmp.has(a.id));
   if (picked.length !== 2) return toast('请在作答历史中勾选两版', true);
   const [e1, e2] = picked.map(a => a.evaluations.at(-1) || {});
-  const same = ['rubric_version', 'model', 'evidence_mode'].every(k => e1[k] === e2[k]);
+  const same = ['rubric_version', 'model', 'evidence_mode', 'history_aware'].every(k => e1[k] === e2[k]);
   $('#eval-card').hidden = false;
   set('#eval', h`<div class="row between"><h2 style="margin:0">版本对比</h2><button class="ghost sm" onclick="showAttempt(S.sel)">返回单版</button></div>
     ${same ? '' : h`<div class="notice warn" style="margin:8px 0">两版的评估条件（评分标准 / 模型 / 证据设置）不同，分数不能直接当作进步。</div>`}
@@ -536,7 +536,7 @@ async function kbList() {
 }
 
 async function kbEdit(id) {
-  const d = id ? await api('/api/kb/docs/' + id) : { title: '', body: '', topic: '', source: '用户粘贴', priority: 2, reviewed: 1, domain_id: domainId() };
+  const d = id ? await api('/api/kb/docs/' + id) : { title: '', body: '', topic: '', source: '用户粘贴', priority: 2, reviewed: 0, domain_id: domainId() };
   set('#kb-editor', h`<div class="card fade" style="margin-bottom:16px"><div class="row between"><h2 style="margin:0">${id ? '编辑资料' : '添加资料'}</h2>
     ${id ? h`<span class="muted tiny">v${d.version} · 修改正文会生成新版本并重新索引</span>` : ''}</div><div class="stack" style="margin-top:12px">
     <div class="grid cols-2"><label class="field"><span>标题</span><input id="d-title" value="${d.title}"></label>

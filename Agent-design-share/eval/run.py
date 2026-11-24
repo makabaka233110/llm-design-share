@@ -85,7 +85,26 @@ async def cmd_retrieval(a):
     boot_app()
     from app import retrieval
     pid = await load_passages(a.data)
-    queries = split(jl(a.data / "queries.jsonl"), a.split)
+    allq = jl(a.data / "queries.jsonl")
+    dev = [q for q in allq if q.get("split") == "dev"]
+    queries = [q for q in split(allq, a.split) if not (dev and a.feedback_rounds and q.get("split") == "dev")]
+    if a.feedback_rounds and dev:
+        # Priorities come from learner feedback (proposal §3). Simulate it on dev queries only: the learner sees the
+        # weighted top-k and marks each passage useful if it is labelled relevant, otherwise not useful.
+        # Test labels are never used, and dev queries are excluded from scoring.
+        from app import db
+        doc_of = {v: k for k, v in pid.items()}
+        for _ in range(a.feedback_rounds):
+            for q in dev:
+                hits = await retrieval.retrieve(USER, q["question"], a.k * 4, "weighted")
+                for p in list(dict.fromkeys(pid[h["doc_id"]] for h in hits))[:a.k]:
+                    retrieval.apply_feedback(db.row("SELECT * FROM docs WHERE id=?", doc_of[p]), p in q["relevant"])
+        pr = [d["priority"] for d in db.rows("SELECT priority FROM docs")]
+        print(f"feedback replay: {len(dev)} dev queries x {a.feedback_rounds} round(s); priorities "
+              f"min={min(pr)} max={max(pr)} changed={sum(p != retrieval.P_DEFAULT for p in pr)}/{len(pr)}; "
+              f"scoring {len(queries)} non-dev queries")
+    elif not any(p.get("priority") is not None for p in jl(a.data / "passages.jsonl")):
+        print("note: no dev feedback and no preset priorities -> every priority is 2, so weighted ranks == hybrid")
     rows, per = [], defaultdict(lambda: defaultdict(list))
     for mode in retrieval.MODES:
         for q in queries:
@@ -173,7 +192,7 @@ def balanced_subset(cases: list[dict], n: int) -> list[dict]:
 
 async def cmd_evaluator(a):
     boot_app()
-    from app import agent
+    from app import agent, retrieval
     await load_passages(a.data)
     cases = split(jl(a.data / "cases.jsonl"), a.split)
     subset_file = a.out / "evaluator_subset.txt"
@@ -183,8 +202,10 @@ async def cmd_evaluator(a):
         blind = {c["id"] for c in balanced_subset(cases, a.subset)}
     a.out.mkdir(parents=True, exist_ok=True)
     subset_file.write_text("\n".join(sorted(blind)))
-    out, items = [], []
+    out, items, cites = [], [], []
     for c in cases:
+        ref = await retrieval.retrieve(USER, f"{c['question']} {c.get('concept', '')}", 3, "weighted", reviewed_only=True)
+        ref_text = "\n".join(f"- {p['title']}：{p['content'][:300]}" for p in ref)
         for cond in a.conditions.split(","):
             q = add_question(c)
             att = agent.record_attempt(USER, q["id"], c["answer"], "eval")
@@ -194,19 +215,33 @@ async def cmd_evaluator(a):
                         "answer_type": c["answer_type"], "condition": cond, "status": ev["status"], "avg": avg,
                         "scores": ev["scores"], "feedback": ev["feedback"], "evidence": ev["evidence"]})
             fb = ev["feedback"]
-            text = "\n".join([f"状态：{ev['status']}", f"分数：{ev['scores']}",
+            # what the learner reads, minus the score, status badge and evidence ids (they would reveal the condition
+            # and anchor human_score)
+            text = "\n".join([*([fb["reason"]] if fb.get("reason") else []),
+                              *("优点：" + p["text"] for p in fb.get("strengths", [])),
                               *("遗漏：" + p["text"] for p in fb.get("omissions", [])),
                               *("误解：" + p["text"] for p in fb.get("misconceptions", [])),
                               *("建议：" + r for r in fb.get("revisions", []))])
             if c["id"] in blind:
                 items.append({"case": c["id"], "family": c["family"], "domain": c.get("domain", ""), "condition": cond,
                               "question": c["question"], "answer": c["answer"], "feedback": text,
-                              "evidence": "\n".join(f"[{e['eid']}] {e['snippet']}" for e in ev["evidence"]),
+                              "reference": ref_text,
                               "key": {"answer_type": c["answer_type"], "model_score": avg, "status": ev["status"]}})
+                snip = {e["eid"]: e["snippet"] for e in ev["evidence"]}
+                for kind_, pts in (("优点", fb.get("strengths", [])), ("遗漏", fb.get("omissions", [])),
+                                   ("误解", fb.get("misconceptions", []))):
+                    for pt in pts:
+                        if pt.get("evidence"):
+                            cites.append({"case": c["id"], "family": c["family"], "domain": c.get("domain", ""),
+                                          "condition": cond, "feedback_point": f"{kind_}：{pt['text']}",
+                                          "quote": pt.get("quote", ""),
+                                          "cited": "\n".join(f"[{e}] {snip[e]}" for e in pt["evidence"] if e in snip)})
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / "evaluator_runs.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in out))
-    blind_sheet(a.out / "evaluator_rating.csv", items, ["question", "answer", "feedback", "evidence"],
-                ["correctness", "usefulness", "citation_support", "human_score"])
+    blind_sheet(a.out / "evaluator_rating.csv", items, ["question", "answer", "reference", "feedback"],
+                ["correctness", "usefulness", "human_score"])
+    # only the evidence condition cites anything, so this sheet cannot be blind to condition
+    blind_sheet(a.out / "evaluator_citations.csv", cites, ["feedback_point", "quote", "cited"], ["citation_support"])
     print(f"blind subset: {len(blind)} cases x {len(a.conditions.split(','))} conditions -> {len(items)} sheet rows "
           f"({subset_file})")
     print(f"{'condition':<9} {'domain':<12} {'n':>3} {'valid':>6} {'uncert':>6} {'strong':>7} {'flawed':>7} {'sep':>6}")
@@ -491,6 +526,8 @@ def main():
         s.add_argument("--subset", type=int, default=40, help="evaluator: size of the balanced blind subset")
         s.add_argument("--subset-file", help="evaluator: fixed list of case ids for the blind subset")
         s.add_argument("--n", type=int, default=20, help="cards: number of cards to generate")
+        s.add_argument("--feedback-rounds", type=int, default=1,
+                       help="retrieval: rounds of simulated useful/not-useful feedback on dev queries (0 = off)")
     s = sub.add_parser("stats")
     s.add_argument("sheet")
     s.add_argument("--metric")

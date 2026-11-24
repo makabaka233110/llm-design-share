@@ -70,7 +70,7 @@ def create(c: CardIn, user: User):
 @router.put("/{cid}")
 def edit(cid: int, p: CardPatch, user: User):
     db.owned("cards", cid, user)
-    if fields := p.model_dump(exclude_unset=True):
+    if fields := p.model_dump(exclude_unset=True, exclude_none=True):
         db.update("cards", cid, **fields)
     return db.owned("cards", cid, user)
 

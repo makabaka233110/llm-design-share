@@ -22,6 +22,9 @@ PROMPTS: list[str] = []
 BROKEN = {"on": False}
 
 
+llm._orig_complete = llm.complete
+
+
 def fake_complete(system, messages, max_tokens):
     p = messages[0]["content"]
     PROMPTS.append(p)
@@ -65,12 +68,13 @@ def c():
 
 def test_knowledge_and_retrieval(c):
     d = c.post("/api/domains", json={"name": "计算机", "goals": "后端面试", "criteria": "重视原理"}).json()
-    r = c.post("/api/kb/docs", json={"title": "Redis 笔记", "domain_id": d["id"],
+    r = c.post("/api/kb/docs", json={"title": "Redis 笔记", "domain_id": d["id"], "reviewed": True,
                                       "body": "Redis 持久化有哪些方式？\nRDB 快照，AOF 追加日志，AOF 重写压缩日志。\n"
                                               "为什么 TCP 要三次握手？\n同步序列号，防止历史连接。"}).json()
     assert r["auto_structured"] and r["priority"] == 2
-    c.post("/api/kb/docs", json={"title": "机会成本", "body": "选择一项时放弃的次优选择的价值。", "topic": "经济学"})
-    c.post("/api/kb/docs", json={"title": "未审核面经", "body": "Redis 持久化只有 RDB。", "reviewed": False})
+    c.post("/api/kb/docs", json={"title": "机会成本", "body": "选择一项时放弃的次优选择的价值。", "topic": "经济学", "reviewed": True})
+    pasted = c.post("/api/kb/docs", json={"title": "未审核面经", "body": "Redis 持久化只有 RDB。"}).json()
+    assert pasted["reviewed"] == 0                     # pasted material is not ground truth by default
     for mode in ("bm25", "dense", "hybrid", "weighted"):
         hits = c.post("/api/kb/search", json={"query": "Redis 持久化", "mode": mode}).json()["results"]
         assert hits and "Redis" in hits[0]["content"], mode
@@ -178,7 +182,7 @@ def test_claims_concepts_related_gap_practice(c):
     for title, body in (("TCP 四次挥手", "TCP 断开连接需要四次挥手，TIME_WAIT 持续 2MSL。"),
                         ("UDP", "UDP 无连接、不保证可靠，开销小。"),
                         ("TCP 拥塞控制", "TCP 通过慢启动和拥塞避免调整发送窗口。")):
-        c.post("/api/kb/docs", json={"title": title, "body": body})
+        c.post("/api/kb/docs", json={"title": title, "body": body, "reviewed": True})
     q = c.post("/api/questions", json={"text": "为什么 TCP 要三次握手？", "concept": "TCP 握手"}).json()
     r = c.post(f"/api/questions/{q['id']}/attempts",
                json={"answer": "为了同步双方的序列号。另外 Redis 的 AOF 重写可以压缩日志。"}).json()
@@ -229,3 +233,30 @@ def test_usage_and_delete(c):
     assert u["evaluate"]["calls"] >= 1 and u["evaluate"]["failures"] >= 2
     assert c.delete("/api/me").json()["ok"]
     assert c.get("/api/kb/docs").json() == [] and c.get("/api/cards").json() == []
+
+
+def test_review_fixes(c):
+    # domain criteria are part of the rubric version; domain docs + untagged docs are evidence
+    d = c.post("/api/domains", json={"name": "后端", "criteria": "重视原理"}).json()
+    c.post("/api/kb/docs", json={"title": "Redis", "body": "RDB 快照，AOF 日志。", "reviewed": True})  # untagged
+    q = c.post("/api/questions", json={"text": "Redis 持久化？", "concept": "Redis 持久化", "domain_id": d["id"]}).json()
+    ev = c.post(f"/api/questions/{q['id']}/attempts", json={"answer": "RDB"}).json()["evaluation"]
+    assert ev["rubric_version"].startswith("r1+") and ev["history_aware"] == 1 and ev["status"] == "ok"
+    # hint feedback survives deleting its question (preferences stay traceable)
+    h = c.post(f"/api/questions/{q['id']}/hint", json={}).json()
+    c.post(f"/api/hints/{h['id']}/feedback", json={"feedback": "just_right"})
+    c.delete(f"/api/questions/{q['id']}")
+    assert any(f["id"] == h["id"] and f["qtext"] == "（题目已删除）" for f in c.get("/api/prefs").json()["feedback"])
+    # explicit null in a patch does not blank a field
+    card = c.post("/api/cards", json={"question": "Q", "answer": "A"}).json()
+    assert c.put(f"/api/cards/{card['id']}", json={"question": None, "answer": "B"}).json()["question"] == "Q"
+    # LLM not configured -> evaluation stored as unavailable, not a half-written attempt
+    from app import llm
+    saved, llm.complete, llm._client = llm.complete, llm.__dict__["_orig_complete"], None
+    old_model, llm.MODEL = llm.MODEL, ""
+    try:
+        q2 = c.post("/api/questions", json={"text": "Redis 持久化？"}).json()
+        ev2 = c.post(f"/api/questions/{q2['id']}/attempts", json={"answer": "RDB"}).json()["evaluation"]
+        assert ev2["status"] == "unavailable" and ev2["scores"] is None
+    finally:
+        llm.complete, llm.MODEL = saved, old_model

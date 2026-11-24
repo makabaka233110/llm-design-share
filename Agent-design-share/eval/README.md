@@ -17,6 +17,8 @@
 - `*_rating.csv`：打乱顺序、隐去实验条件的评分表，两位评分者分别填 `_r1` / `_r2` 列。
 - `*_rating.key.jsonl`：条目与实验条件的对应关系，评分完成前不要打开。
 
+`retrieval` 的优先级来自学习者反馈：脚本先在 dev 查询上模拟反馈（看到加权检索的前 3 条，标注为相关的记「有用」，其余记「没用」），再只在其余查询上比较 4 种检索。test 标签不参与反馈。`--feedback-rounds 0` 关闭模拟；此时若资料也没有预设 `priority`，所有优先级都是 2，加权排序与 hybrid 完全相同。
+
 `evaluator` 的盲评子集在运行前由 `balanced_subset()` 按（领域 × 强/弱回答）轮流抽取 40 例，只依赖题目元数据、不看模型输出，抽到的编号写入 `evaluator_subset.txt`。正式实验时把这个文件提交到仓库，之后用 `--subset-file` 固定。
 
 `stats` 子命令计算评分者一致性（Cohen's κ），以及以概念族为单位、10000 次重采样的配对 bootstrap 95% 置信区间。
@@ -45,10 +47,10 @@
 
 | 表 | 列 | 含义 |
 |---|---|---|
-| evaluator | `correctness` | 反馈里指出的问题是否真的是问题（1–5） |
+| evaluator | `correctness` | 反馈里指出的问题是否真的是问题（1–5）。`reference` 列是同一组参考资料，两种条件相同，供你核对事实 |
 | | `usefulness` | 学习者看了能不能知道下一版怎么改（1–5） |
-| | `citation_support` | 反馈引用的证据是否真的支持该条反馈（1–5；没有证据列时留空） |
-| | `human_score` | 你自己按 rubric（正确性、覆盖度、推理、清晰度的平均）给这份回答打的分（1–5），用于计算模型分与人工分的误差 |
+| | `human_score` | 你自己按 rubric（正确性、覆盖度、推理、清晰度的平均）给这份回答打的分（1–5）。表里不显示模型分，避免被锚定；用于计算模型分与人工分的误差 |
+| evaluator_citations | `citation_support` | 这条反馈引用的资料是否支持它（1–5）。只有「有证据」条件会引用，所以这张表无法对条件盲评 |
 | hints | `fits_preference` | 是否符合 `target_preference` 描述的偏好（1–5） |
 | | `too_direct` / `too_vague` | 是否直接泄露答案 / 是否空泛到没有方向（0 或 1） |
 | | `useful` / `factually_correct` | 是否有帮助（1–5）/ 内容是否正确（0 或 1） |

@@ -4,6 +4,7 @@ All prompts live here so their versions can be inspected and bumped together.
 """
 
 import asyncio
+import hashlib
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -85,8 +86,11 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
                    evidence_mode: str = "weighted", history_aware: bool = True) -> dict:
     """Evaluate one attempt and store the result. evidence_mode: weighted|hybrid|none."""
     spec, dom = KINDS[kind], _domain(question["domain_id"])
+    # domain criteria are part of the rubric: a changed criterion is a different rubric version
+    rubric = RUBRIC_VERSION + (f"+{hashlib.sha1(dom['criteria'].encode()).hexdigest()[:6]}" if dom["criteria"] else "")
     passages = [] if evidence_mode == "none" else await retrieval.evidence(
-        user, f"{question['text']} {question['concept']}", attempt["answer"], mode=evidence_mode)
+        user, f"{question['text']} {question['concept']}", attempt["answer"], mode=evidence_mode,
+        domain_id=question["domain_id"])
     history = _history_text(question["id"], attempt["id"]) if history_aware else ""
     related = await retrieval.related_questions(user, question["text"], {question["id"]})
     result = {"status": "ok", "scores": None, "feedback": {}, "evidence": retrieval.cite(passages)}
@@ -142,8 +146,8 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
     result["id"] = db.insert("evaluations", attempt_id=attempt["id"], status=result["status"],
                              scores=result["scores"], feedback=result["feedback"], evidence=result["evidence"],
                              evidence_mode=evidence_mode, history_aware=int(history_aware),
-                             rubric_version=RUBRIC_VERSION, model=llm.MODEL)
-    result.update(rubric_version=RUBRIC_VERSION, model=llm.MODEL, evidence_mode=evidence_mode)
+                             rubric_version=rubric, model=llm.MODEL)
+    result.update(rubric_version=rubric, model=llm.MODEL, evidence_mode=evidence_mode, history_aware=int(history_aware))
     return result
 
 
@@ -248,7 +252,7 @@ def current_prefs(user: str) -> dict:
 def _feedback_since_reset(user: str) -> list[dict]:
     reset = db.row("SELECT created_at FROM hint_prefs WHERE user_id=? AND source='reset' "
                    "ORDER BY version DESC LIMIT 1", user)
-    return db.rows("""SELECT h.*, q.text qtext, q.concept, q.parent_id FROM hints h JOIN questions q ON q.id=h.question_id
+    return db.rows("""SELECT h.*, q.text qtext, q.concept, q.parent_id FROM hints h LEFT JOIN questions q ON q.id=h.question_id
                       WHERE h.user_id=? AND h.rating IS NOT NULL AND h.feedback_at>? ORDER BY h.feedback_at DESC""",
                    user, reset["created_at"] if reset else "")
 

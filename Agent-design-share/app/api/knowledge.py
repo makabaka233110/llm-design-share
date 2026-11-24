@@ -17,7 +17,7 @@ class DocIn(BaseModel):
     topic: str = ""
     source: str = "用户粘贴"
     priority: float = retrieval.P_DEFAULT
-    reviewed: bool = True
+    reviewed: bool = False  # pasted material is not ground truth until the learner reviews it
     domain_id: int | None = None
     structure: bool = True
 
@@ -75,7 +75,7 @@ def get_doc(doc_id: int, user: User):
 @router.put("/docs/{doc_id}")
 async def update_doc(doc_id: int, p: DocPatch, user: User):
     doc = db.owned("docs", doc_id, user)
-    fields = p.model_dump(exclude_unset=True, exclude={"body"})
+    fields = p.model_dump(exclude_unset=True, exclude_none=True, exclude={"body"})
     if "priority" in fields:
         fields["priority"] = _clamp(fields["priority"])
     if "reviewed" in fields:

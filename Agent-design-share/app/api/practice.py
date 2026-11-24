@@ -147,8 +147,7 @@ def concepts(user: User, domain_id: int | None = None):
 def delete_question(qid: int, user: User):
     db.owned("questions", qid, user)
     db.run("DELETE FROM evaluations WHERE attempt_id IN (SELECT id FROM attempts WHERE question_id=?)", qid)
-    for t in ("attempts", "hints"):
-        db.run(f"DELETE FROM {t} WHERE question_id=?", qid)
+    db.run("DELETE FROM attempts WHERE question_id=?", qid)  # hints + feedback stay: preferences remain traceable
     db.run("UPDATE questions SET parent_id=NULL WHERE parent_id=?", qid)
     db.run("DELETE FROM questions WHERE id=?", qid)
     return {"ok": True}
@@ -184,7 +183,8 @@ async def hint_feedback(hid: int, f: HintFeedbackIn, user: User):
 def get_prefs(user: User):
     return {"current": agent.current_prefs(user),
             "versions": db.rows("SELECT * FROM hint_prefs WHERE user_id=? ORDER BY version DESC", user),
-            "feedback": db.rows("""SELECT h.*, q.text qtext FROM hints h JOIN questions q ON q.id=h.question_id
+            "feedback": db.rows("""SELECT h.*, COALESCE(q.text, '（题目已删除）') qtext FROM hints h
+                                   LEFT JOIN questions q ON q.id=h.question_id
                                    WHERE h.user_id=? AND h.rating IS NOT NULL ORDER BY h.feedback_at DESC""", user)}
 
 
@@ -236,7 +236,7 @@ def create_gap(g: GapIn, user: User):
 @router.put("/gaps/{gid}")
 def update_gap(gid: int, g: GapPatch, user: User):
     db.owned("gaps", gid, user)
-    fields = {k: int(v) if isinstance(v, bool) else v for k, v in g.model_dump(exclude_unset=True).items()}
+    fields = {k: int(v) if isinstance(v, bool) else v for k, v in g.model_dump(exclude_unset=True, exclude_none=True).items()}
     if fields:
         db.update("gaps", gid, **fields)
     return db.owned("gaps", gid, user)

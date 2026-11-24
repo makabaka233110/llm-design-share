@@ -9,7 +9,6 @@ import os
 import re
 import time
 
-from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 
 from app import db
@@ -36,7 +35,7 @@ def _get_client():
     if _client is None:
         key = os.getenv("LLM_API_KEY")
         if not key or not MODEL:
-            raise HTTPException(503, "LLM 未配置：在 .env 中设置 LLM_API_KEY / LLM_MODEL")
+            raise LLMError("LLM 未配置：在 .env 中设置 LLM_API_KEY / LLM_MODEL")
         if PROVIDER in ("claude", "anthropic"):
             from anthropic import Anthropic
             _client = Anthropic(api_key=key, base_url=os.getenv("LLM_BASE_URL") or None)
@@ -68,7 +67,7 @@ def _call(task, system, messages, user, max_tokens) -> tuple[str, int]:
     t0 = time.perf_counter()
     try:
         text, tin, tout = complete(system, messages, max_tokens)
-    except HTTPException:
+    except LLMError:  # not configured: nothing was called, nothing to log
         raise
     except Exception as e:
         db.insert("llm_log", user_id=user, task=task, model=MODEL, ms=int((time.perf_counter() - t0) * 1000),

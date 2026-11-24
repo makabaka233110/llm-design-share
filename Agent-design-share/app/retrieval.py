@@ -161,7 +161,7 @@ async def retrieve(user: str, query: str, k: int = 3, mode: str = "weighted", *,
     if reviewed_only:
         sql += " AND reviewed=1"
     if domain_id:
-        sql += " AND domain_id=?"
+        sql += " AND (domain_id=? OR domain_id IS NULL)"  # untagged docs apply to every domain
         args.append(domain_id)
     docs = {str(doc_path(d["id"])): d for d in db.rows(sql, *args)}
     if not docs or not query.strip():

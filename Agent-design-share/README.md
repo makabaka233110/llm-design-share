@@ -44,13 +44,13 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 
 | proposal | 实现位置 |
 |---|---|
-| 资料增删改、来源 / 主题 / 版本 / 审核状态 / 优先级 | `api/knowledge.py`；修改正文时版本号加 1 并重新索引 |
+| 资料增删改、来源 / 主题 / 版本 / 审核状态 / 优先级 | `api/knowledge.py`；修改正文时版本号加 1 并重新索引；粘贴的资料默认「未审核」，学习者勾选后才能作为评分证据 |
 | `final = hybrid × (1 + 0.1 × priority)`，priority ∈ [0,5]，默认 2，有用 +0.5，没用 −1 | `retrieval.retrieve(mode="weighted")`；候选池逐步翻倍，直到池外的段落不可能进入前 k；`hybrid` 模式即不加权基线 |
 | 评估器取重排后前 3 条已审核资料，并逐条核对回答中的论断 | `retrieval.evidence()`：题目 + 概念检索取前 3 条（E1–E3）；回答按句拆成论断，每句再检索 1 条（E4…），标注「用于核对」哪句话 |
 | 检索笔记、面试问题与审核资料 | 已审核资料是评分证据；题库里语义最近的问题（bge-m3）作为「相关问题」传给评估器和详情页，只作参考，不作为评分依据 |
 | 证据不足或输出无效时不编造分数 | `status = uncertain / unavailable`，`scores = null` |
 | 1–5 分 rubric（正确性、覆盖度、推理、清晰度），反馈关联原话与证据编号 | `agent.evaluate`；引用若不在原文中、证据编号若不存在，都会被丢弃 |
-| 存储 rubric 与模型版本 | `evaluations.rubric_version / model / evidence_mode` |
+| 存储 rubric 与模型版本 | `evaluations.rubric_version / model / evidence_mode / history_aware`；领域评分标准变了，rubric 版本号随之改变（`r1+<哈希>`），对比时条件不同会提示不可直接比较 |
 | 模拟面试：岗位、领域、题型（专业知识 / 行为 / 案例），追问或换题，会话保存与恢复 | `api/interview.py`；最多连续追问 2 次。每个问题进入题库，标注 `origin=interview` |
 | 语音：SenseVoice 本地转写 → 可编辑 → 复盘 → 保存 → 薄弱点 → 闪卡草稿 | `api/speech.py` + `api/practice.py` 中的 gaps |
 | 闪卡：手动 / 生成 / 集合 / 导入导出 / 删除 / 到期队列 / 统计 / 退出队列；关联薄弱点与原题 | `api/cards.py`（`gap_id`、`question_id`、`sources`） |
@@ -78,8 +78,8 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 
 | 子命令 | proposal §4 | 需要 LLM | 输出 |
 |---|---|---|---|
-| `retrieval` | 4 种检索的 Recall@3、nDCG@3、延迟，按领域 | 否 | 直接打印 |
-| `evaluator` | 有证据 vs 无证据；强 / 弱回答的分差，按领域；预先指定的 40 例平衡盲评子集 | 是 | `evaluator_rating.csv` |
+| `retrieval` | 4 种检索的 Recall@3、nDCG@3、延迟，按领域；优先级由 dev 查询上模拟的有用 / 没用反馈产生 | 否 | 直接打印 |
+| `evaluator` | 有证据 vs 无证据；强 / 弱回答的分差，按领域；预先指定的 40 例平衡盲评子集（表中不显示模型分和条件） | 是 | `evaluator_rating.csv`、`evaluator_citations.csv` |
 | `hints` | 通用提示 vs 偏好条件提示 | 是 | `hints_rating.csv` |
 | `history` | 只看本次 vs 参考历史；反复错误识别、建议相关性 | 是 | `history_rating.csv` |
 | `scenarios` | 每题 2 个情境变体 + 自动检查 | 是 | `scenarios_rating.csv` |
@@ -104,6 +104,7 @@ BASE=http://127.0.0.1:8000/ python tests/ui_flows.py   # 用真实 Chrome 点完
 
 ## 与 proposal 不同的地方
 
+- **行为题和案例题在没有资料时也会评分**：这两类题考查结构和取舍，通常没有可引用的事实依据，所以不强制要求证据；专业知识题没有已审核资料时返回「无法确定」。资料是否足以判断，由评估器按 prompt 规则判断，没有设相似度阈值。
 - **用户隔离没有登录**：数据按 `X-User` 分开存储，可一键删除，但没有密码。proposal 的场景是个人在本机使用，所以没加认证；如果要部署给多人共用，需要在前面加一层登录。
 
 ## 组件来源
