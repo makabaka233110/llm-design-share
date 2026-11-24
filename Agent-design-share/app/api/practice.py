@@ -1,11 +1,13 @@
 """Question bank + Feynman practice (Ext 2), hints & preferences (Ext 1), scenarios (Ext 3), gaps."""
 
+import re
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app import agent, db, retrieval
+from app import llm
 from app.api import User, call
 
 router = APIRouter(prefix="/api", tags=["practice"])
@@ -80,8 +82,34 @@ def _attempts(qid: int) -> list[dict]:
     return out
 
 
+def _norm(concept: str) -> str:
+    return re.sub(r"\s+", "", concept or "").lower()
+
+
+def _latest_score(qid: int) -> float | None:
+    """Average rubric score of the latest valid evaluation of the question's latest attempt."""
+    e = db.row("""SELECT e.scores FROM evaluations e JOIN attempts a ON a.id=e.attempt_id
+                  WHERE a.question_id=? AND e.status='ok' ORDER BY a.id DESC, e.id DESC LIMIT 1""", qid)
+    return round(sum(e["scores"].values()) / 4, 1) if e else None
+
+
+def _with_scores(qs: list[dict]) -> list[dict]:
+    for q in qs:
+        q["attempts"] = db.row("SELECT COUNT(*) n FROM attempts WHERE question_id=?", q["id"])["n"]
+        q["latest_score"] = _latest_score(q["id"])
+    return qs
+
+
+def _concept_family(user: str, q: dict) -> list[dict]:
+    """All questions sharing the concept (normalised) or the parent chain — performance across contexts."""
+    root = agent.root_of(q)
+    return _with_scores([x for x in db.rows("SELECT id, text, concept, origin, parent_id, difficulty FROM questions "
+                                            "WHERE user_id=? ORDER BY id", user)
+                         if (q["concept"] and _norm(x["concept"]) == _norm(q["concept"])) or agent.root_of(x) == root])
+
+
 @router.get("/questions/{qid}")
-def get_question(qid: int, user: User):
+async def get_question(qid: int, user: User):
     q = db.owned("questions", qid, user)
     q["attempts"] = _attempts(qid)
     if not q["attempts"]:
@@ -89,7 +117,30 @@ def get_question(qid: int, user: User):
     q["parent"] = db.row("SELECT id, text FROM questions WHERE id=?", q["parent_id"]) if q["parent_id"] else None
     q["children"] = db.rows("SELECT id, text, origin FROM questions WHERE parent_id=? ORDER BY id", qid)
     q["hints"] = db.rows("SELECT * FROM hints WHERE question_id=? ORDER BY id", qid)
+    q["concept_family"] = _concept_family(user, q)
+    fam = {x["id"] for x in q["concept_family"]}
+    q["related"] = await retrieval.related_questions(user, q["text"], fam | {qid})
     return q
+
+
+@router.get("/concepts")
+def concepts(user: User, domain_id: int | None = None):
+    """Performance per concept across the original question, interview questions and scenarios."""
+    sql, args = "SELECT id, text, concept, origin, parent_id, difficulty FROM questions WHERE user_id=?", [user]
+    if domain_id:
+        sql += " AND domain_id=?"
+        args.append(domain_id)
+    groups: dict[str, dict] = {}
+    for q in _with_scores(db.rows(sql + " ORDER BY id", *args)):
+        if q["concept"]:
+            g = groups.setdefault(_norm(q["concept"]), {"concept": q["concept"], "questions": []})
+            g["questions"].append(q)
+    out = []
+    for g in groups.values():
+        scored = [q["latest_score"] for q in g["questions"] if q["latest_score"] is not None]
+        g["avg"] = round(sum(scored) / len(scored), 1) if scored else None
+        out.append(g)
+    return sorted(out, key=lambda g: (g["avg"] is None, g["avg"] or 0))  # weakest concepts first
 
 
 @router.delete("/questions/{qid}")
@@ -156,8 +207,11 @@ async def make_scenario(qid: int, s: ScenarioIn, user: User):
     gaps = [db.owned("gaps", g, user)["text"] for g in s.gap_ids] or \
         [g["text"] for g in db.rows("SELECT text FROM gaps WHERE question_id=? AND confirmed=1", qid)]
     passages = await retrieval.evidence(user, f"{q['text']} {q['concept']}")
-    res = await call(agent.scenario, user, q, s.difficulty, gaps, passages)
-    return {**res, "question": get_question(res["question_id"], user)}
+    try:
+        res = await agent.scenario(user, q, s.difficulty, gaps, passages)
+    except llm.LLMError as e:
+        raise HTTPException(502, str(e))
+    return {**res, "question": await get_question(res["question_id"], user)}
 
 
 # ── gaps (from interviews, reflections, or marked during practice) ─────
@@ -205,3 +259,12 @@ async def gap_card_draft(gid: int, user: User):
     cards = await call(agent.gen_cards, user, g["text"], 1, passages) if passages else []
     draft = cards[0] if cards else {"question": g["text"], "answer": "", "sources": []}
     return {**draft, "gap_id": gid, "question_id": g["question_id"], "domain_id": g["domain_id"]}
+
+
+@router.post("/gaps/{gid}/practice")
+async def gap_practice(gid: int, user: User):
+    """Open (or create) the practice question linked to a confirmed gap."""
+    g = db.owned("gaps", gid, user)
+    if not g["confirmed"]:
+        raise HTTPException(400, "请先确认该薄弱点")
+    return {"question_id": g["question_id"] or await call(agent.practice_from_gap, user, g)}

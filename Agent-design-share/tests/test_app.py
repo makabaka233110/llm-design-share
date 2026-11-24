@@ -42,6 +42,8 @@ def fake_complete(system, messages, max_tokens):
                "context": "写多读少，磁盘一般", "eval_points": ["选 AOF everysec"], "concept": "Redis 持久化"}
     elif "判断：1)" in p:
         out = {"concept_aligned": True, "answerable": True, "duplicate_of": None, "reason": ""}
+    elif "改写成一道让学习者" in p:
+        out = {"question": "请讲清楚 AOF 重写的作用和过程", "concept": "Redis 持久化"}
     elif "闪卡" in p:
         out = {"cards": [{"question": "AOF 重写做什么？", "answer": "压缩日志", "evidence": ["E1"]}]}
     elif "给一条提示" in p:
@@ -168,6 +170,35 @@ def test_reflection_gap_card(c):
     draft = c.post(f"/api/gaps/{gap['id']}/card-draft").json()
     card = c.post("/api/cards", json={**draft, "answer": draft["answer"] + "（已编辑）"}).json()
     assert card["gap_id"] == gap["id"] and card["sources"]
+
+
+def test_claims_concepts_related_gap_practice(c):
+    from app import retrieval
+    assert retrieval.claims("RDB 是快照。AOF 记录写命令！\n好") == ["RDB 是快照", "AOF 记录写命令", "好"]
+    for title, body in (("TCP 四次挥手", "TCP 断开连接需要四次挥手，TIME_WAIT 持续 2MSL。"),
+                        ("UDP", "UDP 无连接、不保证可靠，开销小。"),
+                        ("TCP 拥塞控制", "TCP 通过慢启动和拥塞避免调整发送窗口。")):
+        c.post("/api/kb/docs", json={"title": title, "body": body})
+    q = c.post("/api/questions", json={"text": "为什么 TCP 要三次握手？", "concept": "TCP 握手"}).json()
+    r = c.post(f"/api/questions/{q['id']}/attempts",
+               json={"answer": "为了同步双方的序列号。另外 Redis 的 AOF 重写可以压缩日志。"}).json()
+    ev = r["evaluation"]["evidence"]
+    claimed = [e for e in ev if e["claim"]]
+    # E1-E3 come from the question; each claim adds its best passage (if new), labelled with the claim
+    assert claimed and all(e["eid"] not in ("E1", "E2", "E3") for e in claimed)
+    assert any("Redis" in e["title"] for e in ev)
+    assert "用于核对" in PROMPTS[-1] and "## 题库中的相关问题" in PROMPTS[-1]
+    # concept view: original question and its scenario are grouped, weakest concept first
+    groups = {g["concept"]: g for g in c.get("/api/concepts").json()}
+    redis = groups["Redis 持久化"]
+    assert {"manual", "scenario"} <= {x["origin"] for x in redis["questions"]} and redis["avg"] == 3.5
+    detail = c.get(f"/api/questions/{q['id']}").json()
+    assert detail["concept_family"][0]["id"] == q["id"] and detail["related"]
+    # confirmed gap -> practice question (linked back), second call reuses it
+    gap = c.post("/api/gaps", json={"text": "AOF 重写讲不清"}).json()
+    qid = c.post(f"/api/gaps/{gap['id']}/practice").json()["question_id"]
+    assert c.get(f"/api/questions/{qid}").json()["concept"] == "Redis 持久化"
+    assert c.post(f"/api/gaps/{gap['id']}/practice").json()["question_id"] == qid
 
 
 def test_cards(c):

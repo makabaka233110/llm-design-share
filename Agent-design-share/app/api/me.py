@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app import db, retrieval
+from app import db, llm, retrieval
 from app.api import User
 
 router = APIRouter(prefix="/api", tags=["me"])
@@ -42,9 +42,12 @@ def delete_domain(did: int, user: User):
 @router.get("/usage")
 def usage(user: User):
     """API calls, tokens, latency and failure rate per task (proposal §4: operational cost)."""
-    return db.rows("""SELECT task, COUNT(*) calls, SUM(ok=0) failures, SUM(tokens_in) tokens_in,
-                        SUM(tokens_out) tokens_out, CAST(AVG(ms) AS INT) avg_ms
-                      FROM llm_log WHERE user_id=? GROUP BY task ORDER BY calls DESC""", user)
+    rs = db.rows("""SELECT task, COUNT(*) calls, SUM(ok=0) failures, SUM(tokens_in) tokens_in,
+                      SUM(tokens_out) tokens_out, CAST(AVG(ms) AS INT) avg_ms
+                    FROM llm_log WHERE user_id=? GROUP BY task ORDER BY calls DESC""", user)
+    for r in rs:
+        r["cost_usd"] = llm.cost(r["tokens_in"], r["tokens_out"])
+    return rs
 
 
 @router.delete("/me")

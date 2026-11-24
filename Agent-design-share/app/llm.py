@@ -16,6 +16,12 @@ from app import db
 
 PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 MODEL = os.getenv("LLM_MODEL", "")
+# USD per 1M tokens (input / output); 0 = unknown. Used for the cost column of the usage log.
+PRICE_IN, PRICE_OUT = float(os.getenv("LLM_PRICE_IN") or 0), float(os.getenv("LLM_PRICE_OUT") or 0)
+
+
+def cost(tokens_in: int | None, tokens_out: int | None) -> float:
+    return round(((tokens_in or 0) * PRICE_IN + (tokens_out or 0) * PRICE_OUT) / 1e6, 4)
 MAX_RETRIES = 1  # one corrective retry after invalid structured output
 
 _client = None

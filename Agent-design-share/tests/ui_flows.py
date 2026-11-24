@@ -54,6 +54,10 @@ with sync_playwright() as p:
     def scenario():
         pg.click("text=试试情境题"); pg.wait_for_selector("text=评分要点", state="detached", timeout=30000); pg.wait_for_selector("text=情境题"); pg.wait_for_timeout(500)
     step("scenario", scenario)
+    def concepts():
+        pg.wait_for_selector("text=同一概念的表现"); pg.goto(B + "#practice"); pg.click("#q-origin >> text=按概念")
+        pg.wait_for_selector("#q-list .badge >> text=情境题"); pg.click("#q-list .row.tiny >> nth=0"); pg.wait_for_selector("text=同一概念的表现")
+    step("concept view across contexts", concepts)
     def interview():
         pg.goto(B + "#interview"); pg.wait_for_selector("text=开始新面试")
         pg.click("#iv-kind >> text=案例分析"); pg.fill("#iv-role", "咨询"); pg.click('button:text-is("开始")')
@@ -69,6 +73,7 @@ with sync_playwright() as p:
         pg.click("#gaps >> text=确认 >> nth=0"); pg.wait_for_timeout(500)
         pg.click("#gap-tab >> text=已确认"); pg.wait_for_selector("#gaps >> text=生成闪卡")
         pg.click("#gaps >> text=生成闪卡 >> nth=0"); pg.wait_for_selector("#gd-q", timeout=60000); pg.click("text=保存为闪卡"); pg.wait_for_timeout(800)
+        pg.click("#gaps >> text=去练习 >> nth=0"); pg.wait_for_selector("#ans", timeout=30000); assert "AOF" in pg.inner_text("main"); pg.goto(B + "#records"); pg.wait_for_selector("#gaps")
         pg.fill("#pref-text", "提示要短"); pg.click("text=保存 >> nth=0"); pg.wait_for_timeout(800)
         pg.click("text=新建领域"); pg.fill("#dn-new", "物理"); pg.click("details[open] button.primary"); pg.wait_for_timeout(800)
     step("gaps confirm -> card draft; prefs; domain", records)

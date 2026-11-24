@@ -116,6 +116,7 @@ function evalView(ev, { questionId, compact = false } = {}) {
     ${!compact && ev.evidence && ev.evidence.length ? h`<h3>证据</h3><div class="stack">${ev.evidence.map(e => h`<div class="evidence">
       <div class="row between"><span><span class="eid">${e.eid}</span> <b>${e.title}</b> <span class="muted tiny">${e.heading} · v${e.version}</span></span>
       <span class="row"><button class="ghost sm" onclick="kbFeedback(${e.doc_id}, true)">有用</button><button class="ghost sm" onclick="kbFeedback(${e.doc_id}, false)">没用</button></span></div>
+      ${e.claim ? h`<div class="tiny" style="color:var(--info)">核对你说的：「${e.claim}」</div>` : ''}
       <div class="snippet">${e.snippet}</div></div>`)}</div>` : ''}
     <p class="muted tiny" style="margin-top:12px">评分标准 ${ev.rubric_version} · 模型 ${ev.model || '—'} · 证据 ${ev.evidence_mode}${ev.history_aware ? ' · 参考历史' : ''}</p></div>`;
 }
@@ -138,7 +139,7 @@ async function practiceList() {
   set(main, h`<div class="page-head"><div><h1>练习</h1><p>用自己的话讲解一道题或一个概念。AI 依据已审核资料指出遗漏与误解，每次修改都保留为新版本。</p></div></div>
   <div class="grid cols-side">
     <div class="card"><div class="row between" style="margin-bottom:10px"><h2 style="margin:0">题库</h2>
-      ${seg('q-origin', { '': '全部', manual: '手动', interview: '面试', scenario: '情境题' }, '')}</div><div id="q-list" class="list"></div></div>
+      ${seg('q-origin', { '': '全部', manual: '手动', interview: '面试', scenario: '情境题', concept: '按概念' }, '')}</div><div id="q-list" class="list"></div></div>
     <div class="card"><h2>新题目 / 概念</h2><div class="stack">
       <label class="field"><span>题目或要讲解的概念</span><textarea id="q-text" rows="3" placeholder="例如：解释机会成本，并举一个例子"></textarea></label>
       <div class="grid cols-2"><label class="field"><span>核心概念（用于关联）</span><input id="q-concept" placeholder="机会成本"></label>
@@ -149,8 +150,21 @@ async function practiceList() {
   await loadQuestions();
 }
 
+const scoreBadge = s => s == null ? h`<span class="badge">未评分</span>` : h`<span class="badge ${s >= 4 ? 'ok' : s >= 3 ? '' : 'warn'}">${s}</span>`;
+
+async function loadConcepts() {
+  const gs = await api('/api/concepts' + dq());
+  set('#q-list', gs.length ? h`<p class="muted tiny">同一概念在定义题、面试题和情境题上的最新得分。弱的概念排在前面。</p>${gs.map(g => h`
+    <div class="evidence" style="margin-bottom:10px"><div class="row between"><b>${g.concept}</b>${scoreBadge(g.avg)}</div>
+    <div class="stack" style="gap:4px;margin-top:6px">${g.questions.map(q => h`<div class="row tiny" style="cursor:pointer" onclick="go('practice/${q.id}')">
+      <span class="badge ${q.origin === 'scenario' ? 'info' : q.origin === 'interview' ? 'accent' : ''}">${ORIGIN[q.origin] || q.origin}</span>
+      <span class="grow" style="flex:1">${q.text.slice(0, 50)}</span>${scoreBadge(q.latest_score)}</div>`)}</div></div>`)}`
+    : empty('还没有带概念标签的题目', '新建题目时填写“核心概念”即可按概念汇总。'));
+}
+
 async function loadQuestions() {
   const origin = segVal('q-origin');
+  if (origin === 'concept') return loadConcepts();
   const qs = await api('/api/questions?' + [origin && `origin=${origin}`, dq('')].filter(Boolean).join('&'));
   set('#q-list', qs.length ? qs.map(q => h`<div class="item" onclick="go('practice/${q.id}')"><div class="grow">
     <div class="title">${q.text}</div><div class="row tiny" style="margin-top:4px">
@@ -200,7 +214,13 @@ async function practiceDetail(id) {
     <div class="stack">
       <div class="card"><div class="row between"><h2 style="margin:0">作答历史</h2><button class="sm" onclick="compare()">对比所选两版</button></div>
         <p class="muted tiny" style="margin:4px 0 10px">原始回答不会被修改；勾选两版可并排对比。</p><div id="timeline"></div></div>
-      ${q.children.length ? h`<div class="card"><h2>关联情境题</h2><div class="list">${q.children.map(c => h`<div class="item" onclick="go('practice/${c.id}')"><div class="title">${c.text}</div></div>`)}</div></div>` : ''}
+      ${q.concept_family.length > 1 ? h`<div class="card"><h2>同一概念的表现</h2><p class="muted tiny">原题、追问和情境题的最新得分，用来区分“会背”和“会用”。</p>
+        <div class="list">${q.concept_family.map(c => h`<div class="item ${c.id === q.id ? 'active' : ''}" onclick="go('practice/${c.id}')"><div class="grow">
+        <div class="title">${c.text}</div><div class="row tiny" style="margin-top:3px"><span class="badge ${c.origin === 'scenario' ? 'info' : ''}">${ORIGIN[c.origin] || c.origin}</span>
+        ${c.difficulty ? h`<span class="badge">${c.difficulty}</span>` : ''}<span class="muted">${c.attempts} 次作答</span></div></div>${scoreBadge(c.latest_score)}</div>`)}</div></div>` : ''}
+      ${q.related.length ? h`<div class="card"><h2>题库中的相关问题</h2><p class="muted tiny">按语义相似度找出，可能是面试官的追问方向；仅供参考，不作为评分依据。</p>
+        <div class="list">${q.related.map(r => h`<div class="item" onclick="go('practice/${r.id}')"><div class="grow"><div class="title">${r.text}</div>
+        <div class="row tiny" style="margin-top:3px"><span class="badge">${ORIGIN[r.origin] || r.origin}</span><span class="muted">相似度 ${r.similarity}</span></div></div></div>`)}</div></div>` : ''}
       ${q.eval_points ? h`<div class="card sunken"><h2>评分要点</h2><ul class="points">${q.eval_points.map(p => h`<li>${p}</li>`)}</ul></div>` : ''}
     </div>
   </div>`);
@@ -574,8 +594,8 @@ VIEWS.records = async () => {
     <div class="stack">
       <div class="card"><h2>领域</h2><p class="muted tiny">不限职业：为每个领域写下学习目标和额外评分标准，评估时会使用。</p><div id="domains" class="stack"></div>
         <details style="margin-top:8px"><summary>新建领域</summary>${domainForm({})}</details></div>
-      <div class="card"><h2>用量</h2>${usage.length ? h`<table><tr><th>任务</th><th>调用</th><th>失败</th><th>tokens 入/出</th><th>平均 ms</th></tr>
-        ${usage.map(u => h`<tr><td>${u.task}</td><td>${u.calls}</td><td>${u.failures}</td><td class="tiny">${u.tokens_in || 0} / ${u.tokens_out || 0}</td><td>${u.avg_ms}</td></tr>`)}</table>` : empty('暂无调用', '')}</div>
+      <div class="card"><h2>用量</h2>${usage.length ? h`<table><tr><th>任务</th><th>调用</th><th>失败</th><th>tokens 入/出</th><th>费用 $</th><th>平均 ms</th></tr>
+        ${usage.map(u => h`<tr><td>${u.task}</td><td>${u.calls}</td><td>${u.failures}</td><td class="tiny">${u.tokens_in || 0} / ${u.tokens_out || 0}</td><td class="tiny">${u.cost_usd || '—'}</td><td>${u.avg_ms}</td></tr>`)}</table>` : empty('暂无调用', '')}</div>
       <div class="card"><h2>学习者</h2><div class="row"><input id="who" value="${S.user}"><button onclick="switchUser()">切换</button></div>
         <p class="muted tiny" style="margin-top:8px">本地使用，无登录。分析时文本会发送到你在 .env 配置的模型服务。</p>
         <button class="danger" onclick="deleteMe()">删除「${S.user}」的全部数据</button></div>
@@ -601,13 +621,16 @@ async function delDomain(id) { if (confirm('删除该领域？（资料和题目
 const GAP_ORIGIN = { interview: '模拟面试', reflection: '语音复盘', manual: '练习中标记' };
 const gapRow = g => h`<div class="evidence row between" id="gap-${g.id}"><div class="grow"><div>${g.text}</div><div class="row tiny muted">
   <span class="badge">${GAP_ORIGIN[g.origin] || g.origin}</span>${g.question_id ? h`<a onclick="go('practice/${g.question_id}')">相关题目</a>` : ''}<span>${when(g.created_at)}</span></div></div>
-  <div class="row">${g.confirmed ? h`<button class="sm" onclick="gapDraft(this, ${g.id})">生成闪卡</button>
+  <div class="row">${g.confirmed ? h`<button class="sm" onclick="gapPractice(this, ${g.id})">去练习</button><button class="sm" onclick="gapDraft(this, ${g.id})">生成闪卡</button>
     ${g.question_id ? h`<button class="sm" onclick="makeScenario(this, [${g.id}], ${g.question_id})">情境题</button>` : ''}`
     : h`<button class="sm primary" onclick="gapConfirm(${g.id})">确认</button>`}<button class="ghost sm" onclick="gapDelete(${g.id})">忽略</button></div></div>`;
 
 async function loadGaps() {
   const gs = await api('/api/gaps?confirmed=' + (segVal('gap-tab') === '1'));
   set('#gaps', gs.length ? h`<div class="stack">${gs.map(gapRow)}</div>` : empty('没有记录', '模拟面试、语音复盘和练习中的薄弱点会出现在这里。'));
+}
+async function gapPractice(btn, id) {
+  await busy(btn, async () => go('practice/' + (await post(`/api/gaps/${id}/practice`)).question_id));
 }
 async function gapConfirm(id) { await put('/api/gaps/' + id, { confirmed: true }); $('#gap-' + id)?.remove(); toast('已确认'); }
 async function gapDelete(id) { await del('/api/gaps/' + id); document.getElementById('gap-' + id)?.remove(); }

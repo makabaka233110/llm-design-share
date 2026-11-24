@@ -38,6 +38,7 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 | `app/api/*.py` | HTTP 接口（按模块拆分），`X-User` 区分学习者 |
 | `app/static/` | 单页前端（原生 JS，无构建步骤、无外部 CDN） |
 | `eval/run.py` | 第 4 节实验脚本 |
+| `app/static/architecture.html` | 分层架构图（目标 → 页面 → 一次提交 → 代码），方框可点击跳转到对应页面，适合演示 |
 
 ## proposal 对照
 
@@ -45,7 +46,8 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 |---|---|
 | 资料增删改、来源 / 主题 / 版本 / 审核状态 / 优先级 | `api/knowledge.py`；修改正文时版本号加 1 并重新索引 |
 | `final = hybrid × (1 + 0.1 × priority)`，priority ∈ [0,5]，默认 2，有用 +0.5，没用 −1 | `retrieval.retrieve(mode="weighted")`；候选池逐步翻倍，直到池外的段落不可能进入前 k；`hybrid` 模式即不加权基线 |
-| 评估器取重排后前 3 条已审核资料 | `retrieval.evidence()`：先用题目 + 概念检索，再用回答中的论断检索，合并后取前 3 |
+| 评估器取重排后前 3 条已审核资料，并逐条核对回答中的论断 | `retrieval.evidence()`：题目 + 概念检索取前 3 条（E1–E3）；回答按句拆成论断，每句再检索 1 条（E4…），标注「用于核对」哪句话 |
+| 检索笔记、面试问题与审核资料 | 已审核资料是评分证据；题库里语义最近的问题（bge-m3）作为「相关问题」传给评估器和详情页，只作参考，不作为评分依据 |
 | 证据不足或输出无效时不编造分数 | `status = uncertain / unavailable`，`scores = null` |
 | 1–5 分 rubric（正确性、覆盖度、推理、清晰度），反馈关联原话与证据编号 | `agent.evaluate`；引用若不在原文中、证据编号若不存在，都会被丢弃 |
 | 存储 rubric 与模型版本 | `evaluations.rubric_version / model / evidence_mode` |
@@ -54,10 +56,13 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 | 闪卡：手动 / 生成 / 集合 / 导入导出 / 删除 / 到期队列 / 统计 / 退出队列；关联薄弱点与原题 | `api/cards.py`（`gap_id`、`question_id`、`sources`） |
 | Ext 1：提示与反馈分别存储，偏好可查看 / 编辑 / 重置，按用户隔离，生成新提示时使用 | `agent.hint / update_prefs`；每条提示记录所用的偏好版本 |
 | Ext 2：费曼讲解（文字或语音），每次修改是新版本，时间线 + 并排对比，参考历史作答 | `POST /api/questions/{id}/attempts`；评估条件不同时，界面提示分数不可直接比较 |
-| Ext 3：情境题保留概念、改变情境，评分要点在作答前隐藏，检查概念、可答性、是否重复 | `agent.scenario`：生成后由 LLM 审核，未通过则带原因重试 1 次 |
+| Ext 3：情境题保留概念、改变情境，评分要点在作答前隐藏，检查概念、可答性、与父题或已有题目是否重复 | `agent.scenario`：查重范围 = 同题族 + 同概念 + 题库中语义最近的题；未通过则带原因重试 1 次 |
+| Ext 3：查看同一概念在不同情境下的表现 | 题库「按概念」视图（`GET /api/concepts`，弱的概念在前）；题目详情页「同一概念的表现」 |
+| 复盘发现的薄弱点关联到后续练习 | 已确认的薄弱点可「去练习」：生成一道关联的练习题（`gaps.question_id`），可继续出情境题、生成闪卡 |
 | 参考库与学习记录库分离 | 参考库为 `data/kb/*.md` + Milvus，其余数据全部在 SQLite |
 | 用户隔离、可删除个人数据 | 每张表都有 `user_id`；`DELETE /api/me` |
-| 记录 API 用量、成本、延迟、失败率 | `llm_log` 表；界面「学习记录 → 用量」 |
+| 记录 API 用量、成本、延迟、失败率 | `llm_log` 表；`.env` 填 `LLM_PRICE_IN/OUT` 后按 token 换算费用；界面「学习记录 → 用量」，实验输出 `usage.json` |
+| 记录依赖版本 | `requirements.lock`（实际测试通过的精确版本） |
 
 ## 和上一版相比修掉的问题
 
@@ -71,20 +76,35 @@ bash start.sh          # 首次运行会生成 .env；填好 LLM 配置后重启
 
 ## 实验（proposal §4）
 
+| 子命令 | proposal §4 | 需要 LLM | 输出 |
+|---|---|---|---|
+| `retrieval` | 4 种检索的 Recall@3、nDCG@3、延迟，按领域 | 否 | 直接打印 |
+| `evaluator` | 有证据 vs 无证据；强 / 弱回答的分差，按领域；预先指定的 40 例平衡盲评子集 | 是 | `evaluator_rating.csv` |
+| `hints` | 通用提示 vs 偏好条件提示 | 是 | `hints_rating.csv` |
+| `history` | 只看本次 vs 参考历史；反复错误识别、建议相关性 | 是 | `history_rating.csv` |
+| `scenarios` | 每题 2 个情境变体 + 自动检查 | 是 | `scenarios_rating.csv` |
+| `asr` | SenseVoice 转写错误率（CER）+ 复盘总结忠实度 | 总结部分需要 | `asr_rating.csv` |
+| `cards` | 20 张生成闪卡的证据支持与概念覆盖 | 是 | `cards_rating.csv` |
+| `stats` | Cohen's κ、模型分与人工分的误差、按条件 / 领域的均值、概念族配对 bootstrap 95% CI | 否 | 直接打印 |
+
 ```bash
-.venv/bin/python eval/run.py retrieval --data eval/sample          # 无需 LLM
-.venv/bin/python eval/run.py evaluator --conditions weighted,none  # 需要 .env 中的 LLM
-.venv/bin/python eval/run.py hints | history | scenarios
+.venv/bin/python eval/run.py retrieval --data eval/sample
+.venv/bin/python eval/run.py evaluator --data <数据目录> --split test
 .venv/bin/python eval/run.py stats eval/results/evaluator_rating.csv --metric usefulness --a none --b weighted
 ```
 
-数据格式见 `eval/README.md`。`eval/sample/` 只是演示格式的小样例（12 段资料、10 个查询），不是正式数据集。
+数据格式和标注指南见 `eval/README.md`。`eval/sample/` 只是演示格式的小样例（12 段资料、10 个查询），不是正式数据集。
 
 ## 测试
 
 ```bash
-.venv/bin/python -m pytest -q        # 9 个端到端测试：真实检索 + 脚本化的假 LLM
+.venv/bin/python -m pytest -q        # 13 个测试：真实检索 + 脚本化的假 LLM，以及实验脚本的统计函数
+BASE=http://127.0.0.1:8000/ python tests/ui_flows.py   # 用真实 Chrome 点完 12 条主要流程（需要 pip install playwright）
 ```
+
+## 与 proposal 不同的地方
+
+- **用户隔离没有登录**：数据按 `X-User` 分开存储，可一键删除，但没有密码。proposal 的场景是个人在本机使用，所以没加认证；如果要部署给多人共用，需要在前面加一层登录。
 
 ## 组件来源
 

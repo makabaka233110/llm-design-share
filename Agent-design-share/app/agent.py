@@ -88,6 +88,7 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
     passages = [] if evidence_mode == "none" else await retrieval.evidence(
         user, f"{question['text']} {question['concept']}", attempt["answer"], mode=evidence_mode)
     history = _history_text(question["id"], attempt["id"]) if history_aware else ""
+    related = await retrieval.related_questions(user, question["text"], {question["id"]})
     result = {"status": "ok", "scores": None, "feedback": {}, "evidence": retrieval.cite(passages)}
 
     if evidence_mode != "none" and spec["need_evidence"] and not passages:
@@ -109,6 +110,8 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
 
 {('## 历史作答（旧→新）\n' + history) if history else ''}
 
+{('## 题库中的相关问题（仅供参考：提示面试官可能追问的方向，不作为评分依据）\n' + chr(10).join('- ' + r['text'] for r in related)) if related else ''}
+
 ## 评分标准（{RUBRIC_VERSION}）
 {RUBRIC}
 {('领域补充标准：' + dom['criteria']) if dom['criteria'] else ''}
@@ -121,6 +124,7 @@ async def evaluate(user: str, question: dict, attempt: dict, *, kind: str = "kno
  "revisions":["具体修改建议"],
  "recurring":["历史中出现且本次仍存在的错误"], "resolved":["历史中出现、本次已纠正的问题"]}}
 规则：quote 必须是学习者原文的连续片段；evidence 只能使用上面出现的编号；
+标注「用于核对」的资料是按回答中的某句话检索到的，若它与那句话无关，该论断视为无法核实，不能据此判对错；
 若参考资料不足以判断正确性，status 设为 "uncertain"、scores 设为 null 并在 reason 说明；
 没有历史作答时 recurring 和 resolved 为空数组。"""
         try:
@@ -318,14 +322,13 @@ class CheckOut(BaseModel):
 SCENARIO_TRIES = 2
 
 
-def scenario(user: str, parent: dict, difficulty: str, gaps: list[str], passages: list[dict]) -> dict:
+async def scenario(user: str, parent: dict, difficulty: str, gaps: list[str], passages: list[dict]) -> dict:
     fam = root_of(parent)
-    family = [q for q in db.rows("SELECT id, text, parent_id, concept FROM questions WHERE user_id=?", user)
-              if q["concept"] == parent["concept"] or root_of(q) == fam]
-    existing = "\n".join(f"#{q['id']} {q['text']}" for q in family)
+    family = {q["id"]: q for q in db.rows("SELECT id, text, parent_id, concept FROM questions WHERE user_id=?", user)
+              if q["concept"] == parent["concept"] or root_of(q) == fam}
     feedback = ""
     for _ in range(SCENARIO_TRIES):
-        gen = llm.chat_json("scenario", "你设计应用型练习题。只返回 JSON。", f"""原题：{parent['text']}
+        gen = await asyncio.to_thread(llm.chat_json, "scenario", "你设计应用型练习题。只返回 JSON。", f"""原题：{parent['text']}
 核心概念：{parent['concept'] or '请从原题推断'}
 学习者的相关薄弱点：{'；'.join(gaps) or '无'}
 难度：{difficulty}（相对原题）
@@ -334,8 +337,11 @@ def scenario(user: str, parent: dict, difficulty: str, gaps: list[str], passages
 {feedback}
 设计一道新的情境题：保留同一核心概念，但换一个应用情境或约束条件，不能只是改写原题。题目要自洽、信息足够作答。
 返回 {{"question":"题干","context":"情境与约束","eval_points":["评分要点，不向学习者展示"],"concept":"核心概念"}}""",
-                            ScenarioOut, user)
-        check = llm.chat_json("scenario_check", "你审核练习题质量。只返回 JSON。", f"""核心概念：{parent['concept'] or parent['text']}
+                                    ScenarioOut, user)
+        # near-duplicate candidates: the parent's family, same-concept questions, and the bank's nearest questions
+        nearest = await retrieval.related_questions(user, gen.question, set(family))
+        existing = "\n".join(f"#{q['id']} {q['text']}" for q in [*family.values(), *nearest])
+        check = await asyncio.to_thread(llm.chat_json, "scenario_check", "你审核练习题质量。只返回 JSON。", f"""核心概念：{parent['concept'] or parent['text']}
 新题：{gen.question}
 情境：{gen.context}
 已有题目：
@@ -344,12 +350,34 @@ def scenario(user: str, parent: dict, difficulty: str, gaps: list[str], passages
 返回 {{"concept_aligned":true,"answerable":true,"duplicate_of":null 或题号,"reason":""}}""", CheckOut, user, 300)
         if check.concept_aligned and check.answerable and not check.duplicate_of:
             qid = db.insert("questions", user_id=user, domain_id=parent["domain_id"], text=gen.question,
-                            concept=gen.concept or parent["concept"], kind=parent["kind"], origin="scenario", parent_id=parent["id"],
-                            context=gen.context, eval_points=gen.eval_points, difficulty=difficulty,
-                            sources=[p["doc_id"] for p in passages])
+                            concept=gen.concept or parent["concept"], kind=parent["kind"], origin="scenario",
+                            parent_id=parent["id"], context=gen.context, eval_points=gen.eval_points,
+                            difficulty=difficulty, sources=[p["doc_id"] for p in passages])
             return {"question_id": qid, "check": check.model_dump()}
         feedback = f"上一次生成未通过审核：{check.model_dump_json()}。请修正。"
     raise llm.LLMError(f"情境题未通过检查：{check.reason}")
+
+
+# ── gaps -> practice ────────────────────────────────────────────────────
+
+class GapQuestionOut(BaseModel):
+    question: str
+    concept: str
+
+
+def practice_from_gap(user: str, gap: dict) -> int:
+    """Turn a confirmed gap into a bank question (linked back to the gap) so it can be practised."""
+    try:
+        out = llm.chat_json("gap_question", "你把学习者的薄弱点改写成练习题。只返回 JSON。", f"""薄弱点：{gap['text']}
+改写成一道让学习者用自己的话讲解的练习题，并给出它考查的核心概念（几个字）。
+返回 {{"question":"...","concept":"..."}}""", GapQuestionOut, user, 300)
+        text, concept = out.question, out.concept
+    except llm.LLMError:
+        text, concept = f"请用自己的话讲清楚：{gap['text']}", ""
+    qid = db.insert("questions", user_id=user, domain_id=gap["domain_id"], text=text, concept=concept,
+                    origin=gap["origin"] if gap["origin"] in ("reflection", "interview") else "manual")
+    db.update("gaps", gap["id"], question_id=qid)
+    return qid
 
 
 # ── flashcards ──────────────────────────────────────────────────────────

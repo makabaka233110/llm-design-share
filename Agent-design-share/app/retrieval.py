@@ -189,16 +189,27 @@ async def retrieve(user: str, query: str, k: int = 3, mode: str = "weighted", *,
     return hits[:k]
 
 
+def claims(answer: str) -> list[str]:
+    """Split an answer into sentence-level claims (rule-based, no model call)."""
+    parts = re.split(r"[。！？!?；;\n]+", answer)
+    return [c.strip() for c in parts if re.search(r"\w", c)]
+
+
 async def evidence(user: str, question: str, answer: str = "", k: int = 3, mode: str = "weighted",
                    domain_id: int | None = None) -> list[dict]:
-    """Evaluator evidence: start from the question/concept, then check the answer's claims.
-    Reviewed reference docs only (generated or unreviewed text never scores answers)."""
-    found: dict[str, dict] = {}
-    for q in filter(None, [question, answer]):
-        for h in await retrieve(user, q, k, mode, reviewed_only=True, domain_id=domain_id):
-            if h["id"] not in found or h["final_score"] > found[h["id"]]["final_score"]:
-                found[h["id"]] = h
-    top = sorted(found.values(), key=lambda h: h["final_score"], reverse=True)[:k]
+    """Evaluator evidence (reviewed docs only; generated or unreviewed text never scores answers).
+
+    1. Start from the question + concept: top-k reranked passages (E1..Ek).
+    2. Check specific claims: for every sentence of the answer, its best passage is added
+       (E{k+1}..) unless already present, labelled with the claim it was retrieved for.
+    """
+    top = await retrieve(user, question, k, mode, reviewed_only=True, domain_id=domain_id)
+    seen = {h["id"] for h in top}
+    for claim in claims(answer):
+        for h in await retrieve(user, claim, 1, mode, reviewed_only=True, domain_id=domain_id):
+            if h["id"] not in seen:
+                seen.add(h["id"])
+                top.append({**h, "claim": claim})
     for i, h in enumerate(top, 1):
         h["eid"] = f"E{i}"
     return top
@@ -208,10 +219,32 @@ def cite(passages: list[dict]) -> list[dict]:
     """Snapshot of evidence stored with an evaluation (traceable even if the doc changes later)."""
     return [{"eid": p["eid"], "chunk": p["id"], "doc_id": p["doc_id"], "version": p["version"],
              "title": p["title"], "heading": p["heading"], "snippet": p["content"][:300],
-             "final_score": p["final_score"]} for p in passages]
+             "final_score": p["final_score"], "claim": p.get("claim", "")} for p in passages]
+
+
+# ── related questions (question bank; context only, never scoring evidence) ──
+
+_qvec: dict[str, list[float]] = {}
+
+
+async def related_questions(user: str, text: str, exclude: set[int], k: int = 3) -> list[dict]:
+    """Nearest questions in the learner's bank by bge-m3 cosine similarity."""
+    qs = [q for q in db.rows("SELECT id, text, concept, origin, parent_id FROM questions WHERE user_id=?", user)
+          if q["id"] not in exclude]
+    if not qs:
+        return []
+    missing = [t for t in {text, *(q["text"] for q in qs)} if t not in _qvec]
+    if missing:
+        for t, v in zip(missing, await mem()._embedder.embed(missing)):
+            _qvec[t] = v
+    base = _qvec[text]
+    for q in qs:
+        q["similarity"] = round(sum(a * b for a, b in zip(base, _qvec[q["text"]])), 3)  # bge-m3 vectors are unit-norm
+    return sorted(qs, key=lambda q: q["similarity"], reverse=True)[:k]
 
 
 def as_context(passages: list[dict]) -> str:
     # Chunks are already capped by Memsearch (max_chunk_size=1500), so pass them whole.
-    return "\n\n".join(f"[{p.get('eid', i)}] {p['title']} / {p['heading']}\n{p['content']}"
+    return "\n\n".join(f"[{p.get('eid', i)}] {p['title']} / {p['heading']}"
+                       + (f"（用于核对：「{p['claim']}」）" if p.get("claim") else "") + f"\n{p['content']}"
                        for i, p in enumerate(passages, 1)) or "（无参考资料）"
