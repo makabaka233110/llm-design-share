@@ -1,13 +1,16 @@
 """How should learner feedback become a ranking signal? Offline comparison on eval/data (the app is unchanged).
 
-  python eval/feedback_variants.py ROUNDS TAU [revisit]
+  python eval/feedback_variants.py ROUNDS TAU [revisit] [strict]
 
 Variants (all rerank the same 40 hybrid candidates with final = base x (1 + 0.1 x priority)):
   formula(1)              proposal: one global priority per passage, +0.5 useful / -1 not useful
   negative-only           only "not useful" counts, globally (a wrong passage is wrong for every question)
   similar-questions       each feedback counts in proportion to how similar its question is to the current one
   neg-global+pos-similar  "not useful" global, "useful" only for similar questions
-Feedback is simulated with the quality policy on dev questions (new-question setting), or on dev + test questions
+  reason-split            "not useful" carries a reason: "wrong/vague" counts globally, "off-topic" and "useful"
+                          only for similar questions (the app would need a reason choice on the 没用 button)
+Feedback is simulated with the quality policy (not useful only on labelled low-quality passages) or, with
+"strict", also on merely off-topic passages, so "not useful" no longer implies the passage itself is bad; on dev questions (new-question setting), or on dev + test questions
 before scoring test questions again (revisit setting, e.g. answering the same question a second time).
 TAU is the similarity floor (bge-m3 cosine), fixed a priori at 0.6, not tuned on test.
 """
@@ -18,7 +21,7 @@ sys.path.insert(0, ROOT); sys.path.insert(0, ROOT + "/eval")
 import run; run.boot_app(False)
 from app import retrieval
 K, ROUNDS, TAU = 3, int(sys.argv[1]), float(sys.argv[2])
-REVISIT = len(sys.argv) > 3 and sys.argv[3] == "revisit"
+REVISIT, STRICT = "revisit" in sys.argv[3:], "strict" in sys.argv[3:]
 async def main():
     pid = await run.load_passages(run.Path(ROOT + "/eval/data"))
     Q = run.jl(run.Path(ROOT + "/eval/data/queries.jsonl"))
@@ -38,22 +41,24 @@ async def main():
     for _ in range(ROUNDS):
         for q in (dev + test if REVISIT else dev):  # revisit: the learner already saw each test question once
             for p in rank(await pool(q), glob):
-                if p in q["relevant"] or p in q.get("weak", []):
+                if STRICT or p in q["relevant"] or p in q.get("weak", []):
                     d = 0.5 if p in q["relevant"] else -1.0
-                    events.append((q["id"], p, d)); glob[p] = min(5, max(0, glob.get(p, 2) + d))
+                    events.append((q["id"], p, d, p in q.get("weak", []))); glob[p] = min(5, max(0, glob.get(p, 2) + d))
     cos = lambda a, b: sum(x * y for x, y in zip(a, b))
     def variant(name, q):
         if name == "hybrid": return {}
         if name == "formula(1)": return glob
         pr = {}
-        for qid, p, d in events:
+        for qid, p, d, bad in events:
+            sim = max(0.0, (cos(vec[q["id"]], vec[qid]) - TAU) / (1 - TAU))
             if name == "negative-only" and d < 0: w = 1
-            elif name == "similar-questions": w = max(0.0, (cos(vec[q["id"]], vec[qid]) - TAU) / (1 - TAU))
-            elif name == "neg-global+pos-similar": w = 1 if d < 0 else max(0.0, (cos(vec[q["id"]], vec[qid]) - TAU) / (1 - TAU))
+            elif name == "similar-questions": w = sim
+            elif name == "neg-global+pos-similar": w = 1 if d < 0 else sim
+            elif name == "reason-split": w = 1 if bad else sim
             else: w = 0
             pr[p] = pr.get(p, 2) + d * w
         return {p: min(5, max(0, v)) for p, v in pr.items()}
-    names = ["hybrid", "formula(1)", "negative-only", "similar-questions", "neg-global+pos-similar"]
+    names = ["hybrid", "formula(1)", "negative-only", "similar-questions", "neg-global+pos-similar", "reason-split"]
     res = {n: [] for n in names}
     for q in test:
         cands = await pool(q)
@@ -61,7 +66,7 @@ async def main():
             r = rank(cands, variant(n, q)); rel = set(q["relevant"])
             res[n].append((len(rel & set(r)) / len(rel), run.ndcg(r, rel, K), len(set(q.get("weak", [])) & set(r)) / K))
     base = res["hybrid"]
-    print(f"{'REVISIT' if REVISIT else 'NEW QUESTIONS'}: rounds={ROUNDS} tau={TAU} events={len(events)}")
+    print(f"{'REVISIT' if REVISIT else 'NEW QUESTIONS'} policy={'strict' if STRICT else 'quality'}: rounds={ROUNDS} tau={TAU} events={len(events)}")
     for n in names:
         m = [sum(x[i] for x in res[n]) / len(test) for i in range(3)]
         d = [res[n][j][1] - base[j][1] for j in range(len(test))]
