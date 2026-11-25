@@ -9,20 +9,26 @@
 </head>
 <body>
   <aside class="sidebar">
-    <div class="brand"><span class="logo">壁</span><div><b>面壁</b><small>Mianbi</small></div></div>
+    <div class="brand"><span class="logo">壁</span><div><b id="brand-name">面壁</b><small id="brand-sub">Mianbi</small></div></div>
     <label class="field compact">
-      <span>领域</span>
+      <span id="domain-label">领域</span>
       <select id="domain-select"></select>
     </label>
     <nav id="nav"></nav>
     <div class="sidebar-foot">
-      <a href="/static/architecture.html" class="tiny">架构图 →</a>
+      <div class="seg lang-seg" id="lang-switch" role="group" aria-label="Language">
+        <button data-lang="zh-CN" onclick="switchLang('zh-CN')" title="简体中文">简</button>
+        <button data-lang="zh-TW" onclick="switchLang('zh-TW')" title="繁體中文">繁</button>
+        <button data-lang="en" onclick="switchLang('en')" title="English">EN</button>
+      </div>
+      <a href="/static/architecture.html" class="tiny" id="arch-link">架构图 →</a>
       <div id="health" class="muted tiny"></div>
-      <button class="user-chip" onclick="go('records')" title="切换学习者"><span id="user-avatar"></span><span id="user-name"></span></button>
+      <button class="user-chip" id="user-chip" onclick="go('records')" title="切换学习者"><span id="user-avatar"></span><span id="user-name"></span></button>
     </div>
   </aside>
   <main id="main"></main>
   <div id="toast"></div>
+  <script src="/static/i18n.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

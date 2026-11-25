@@ -9,6 +9,8 @@
 <style>
   body { display: block; }
   .wrap { max-width: 1060px; margin: 0 auto; padding: 32px 28px 80px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .topbar .lang-seg { width: auto; min-width: 132px; }
   section { margin-top: 34px; }
   .lv { display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 10px; margin-bottom: 6px; }
   section h2 { font-size: 18px; margin: 0 0 4px; }
@@ -30,6 +32,9 @@
   svg .ar.hl { stroke: var(--accent); marker-end: url(#ah2); }
   svg .ar.no { stroke: var(--bad); stroke-dasharray: 5 4; marker-end: url(#ah3); }
   svg .center { font-size: 22px; font-weight: 700; fill: var(--text); }
+  html[lang="en"] svg .t { font-size: 13.5px; }
+  html[lang="en"] svg .s { font-size: 11px; }
+  html[lang="en"] svg .lbl { font-size: 11px; }
   .card.note { margin-top: 10px; font-size: 13px; }
 </style>
 </head>
@@ -41,154 +46,296 @@
 </defs></svg>
 
 <div class="wrap">
-  <a href="/" class="tiny">← 回到应用</a>
-  <h1 style="margin-top:6px">面壁 · 架构图</h1>
-  <p class="muted">从上往下读：先看为什么做，再看你在界面上做什么，然后看一次点击背后发生了什么，最后看代码。方框可以点击，会跳到对应页面。</p>
+  <div class="topbar">
+    <a href="/" class="tiny" data-k="back">← 回到应用</a>
+    <div class="seg lang-seg" id="lang-switch" role="group" aria-label="Language">
+      <button data-lang="zh-CN" onclick="setArchLang('zh-CN')" title="简体中文">简</button>
+      <button data-lang="zh-TW" onclick="setArchLang('zh-TW')" title="繁體中文">繁</button>
+      <button data-lang="en" onclick="setArchLang('en')" title="English">EN</button>
+    </div>
+  </div>
+  <h1 style="margin-top:6px" data-k="h1">面壁 · 架构图</h1>
+  <p class="muted" data-k="intro">从上往下读：先看为什么做，再看你在界面上做什么，然后看一次点击背后发生了什么，最后看代码。方框可以点击，会跳到对应页面。</p>
 
   <!-- ① 目的 -->
   <section>
-    <span class="lv">第 1 层 · 目的</span>
-    <h2>看过 ≠ 会讲：把资料变成讲得清楚、用得出来的能力</h2>
-    <p>一个循环，每一步都留下记录，下一步会用到这些记录。</p>
+    <span class="lv" data-k="l1.tag">第 1 层 · 目的</span>
+    <h2 data-k="l1.h2">看过 ≠ 会讲：把资料变成讲得清楚、用得出来的能力</h2>
+    <p data-k="l1.p">一个循环，每一步都留下记录，下一步会用到这些记录。</p>
     <svg viewBox="0 0 1000 205">
       <a href="/#kb" target="_top"><rect class="box" x="10" y="20" width="170" height="78" rx="12"/>
-        <text class="n" x="28" y="48">1</text><text class="t" x="46" y="48">整理资料</text><text class="s" x="28" y="76">笔记、面经、教材摘录</text></a>
+        <text class="n" x="28" y="48">1</text><text class="t" x="46" y="48" data-k="l1.b1t">整理资料</text><text class="s" x="28" y="76" data-k="l1.b1s">笔记、面经、教材摘录</text></a>
       <a href="/#practice" target="_top"><rect class="box hl" x="212" y="20" width="170" height="78" rx="12"/>
-        <text class="n" x="230" y="48">2</text><text class="t" x="248" y="48">练习</text><text class="s" x="230" y="76">讲解 · 模拟面试 · 录音</text></a>
+        <text class="n" x="230" y="48">2</text><text class="t" x="248" y="48" data-k="l1.b2t">练习</text><text class="s" x="230" y="76" data-k="l1.b2s">讲解 · 模拟面试 · 录音</text></a>
       <rect class="box" x="414" y="20" width="170" height="78" rx="12"/>
-        <text class="n" x="432" y="48">3</text><text class="t" x="450" y="48">有依据的反馈</text><text class="s" x="432" y="76">对照你的资料打分</text>
+        <text class="n" x="432" y="48">3</text><text class="t" x="450" y="48" data-k="l1.b3t">有依据的反馈</text><text class="s" x="432" y="76" data-k="l1.b3s">对照你的资料打分</text>
       <a href="/#records" target="_top"><rect class="box" x="616" y="20" width="170" height="78" rx="12"/>
-        <text class="n" x="634" y="48">4</text><text class="t" x="652" y="48">记下薄弱点</text><text class="s" x="634" y="76">你确认后才算数</text></a>
+        <text class="n" x="634" y="48">4</text><text class="t" x="652" y="48" data-k="l1.b4t">记下薄弱点</text><text class="s" x="634" y="76" data-k="l1.b4s">你确认后才算数</text></a>
       <a href="/#cards" target="_top"><rect class="box" x="818" y="20" width="170" height="78" rx="12"/>
-        <text class="n" x="836" y="48">5</text><text class="t" x="854" y="48">复习、再练</text><text class="s" x="836" y="76">闪卡 · 情境题</text></a>
+        <text class="n" x="836" y="48">5</text><text class="t" x="854" y="48" data-k="l1.b5t">复习、再练</text><text class="s" x="836" y="76" data-k="l1.b5s">闪卡 · 情境题</text></a>
       <path class="ar" d="M180 59H210"/><path class="ar" d="M382 59H412"/><path class="ar" d="M584 59H614"/><path class="ar" d="M786 59H816"/>
       <path class="ar hl" d="M903 98V150H297V100"/>
-      <text class="lbl" x="600" y="172" text-anchor="middle">回到练习，直到讲得清楚</text>
+      <text class="lbl" x="600" y="172" text-anchor="middle" data-k="l1.loop">回到练习，直到讲得清楚</text>
     </svg>
   </section>
 
   <!-- ② 页面 -->
   <section>
-    <span class="lv">第 2 层 · 你在界面上做什么</span>
-    <h2>6 个页面，各自做一件事，彼此传递记录</h2>
-    <p>箭头上写的是传过去的东西。左侧栏的每一项对应这里的一个方框。</p>
+    <span class="lv" data-k="l2.tag">第 2 层 · 你在界面上做什么</span>
+    <h2 data-k="l2.h2">6 个页面，各自做一件事，彼此传递记录</h2>
+    <p data-k="l2.p">箭头上写的是传过去的东西。左侧栏的每一项对应这里的一个方框。</p>
     <svg viewBox="0 0 1000 430">
       <a href="/#kb" target="_top"><rect class="box ok" x="10" y="150" width="200" height="124" rx="12"/>
-        <text class="t" x="28" y="178">知识库</text>
-        <text class="s" x="28" y="204">做：添加资料，勾选“已审核”</text><text class="s" x="28" y="224">　　对检索结果标有用 / 没用</text>
-        <text class="s" x="28" y="254">得到：评分的依据</text></a>
+        <text class="t" x="28" y="178" data-k="l2.kb.t">知识库</text>
+        <text class="s" x="28" y="204" data-k="l2.kb.s1">做：添加资料，勾选“已审核”</text><text class="s" x="28" y="224" data-k="l2.kb.s2">　　对检索结果标有用 / 没用</text>
+        <text class="s" x="28" y="254" data-k="l2.kb.s3">得到：评分的依据</text></a>
 
       <a href="/#practice" target="_top"><rect class="box hl" x="330" y="8" width="236" height="138" rx="12"/>
-        <text class="t" x="348" y="36">练习（费曼讲解）</text>
-        <text class="s" x="348" y="62">做：用自己的话讲解</text><text class="s" x="348" y="82">　　要提示并评价它（扩展 1）</text>
-        <text class="s" x="348" y="108">得到：分数、证据、版本对比（扩展 2）</text><text class="s" x="348" y="128">　　　同一概念在各情境的得分</text></a>
+        <text class="t" x="348" y="36" data-k="l2.pr.t">练习（费曼讲解）</text>
+        <text class="s" x="348" y="62" data-k="l2.pr.s1">做：用自己的话讲解</text><text class="s" x="348" y="82" data-k="l2.pr.s2">　　要提示并评价它（扩展 1）</text>
+        <text class="s" x="348" y="108" data-k="l2.pr.s3">得到：分数、证据、版本对比（扩展 2）</text><text class="s" x="348" y="128" data-k="l2.pr.s4">　　　同一概念在各情境的得分</text></a>
       <a href="/#interview" target="_top"><rect class="box" x="330" y="153" width="236" height="118" rx="12"/>
-        <text class="t" x="348" y="181">模拟面试</text>
-        <text class="s" x="348" y="207">做：回答 AI 面试官</text>
-        <text class="s" x="348" y="233">得到：追问或换题、每题评估、</text><text class="s" x="348" y="253">　　　面试总结</text></a>
+        <text class="t" x="348" y="181" data-k="l2.iv.t">模拟面试</text>
+        <text class="s" x="348" y="207" data-k="l2.iv.s1">做：回答 AI 面试官</text>
+        <text class="s" x="348" y="233" data-k="l2.iv.s2">得到：追问或换题、每题评估、</text><text class="s" x="348" y="253" data-k="l2.iv.s3">　　　面试总结</text></a>
       <a href="/#speech" target="_top"><rect class="box" x="330" y="286" width="236" height="118" rx="12"/>
-        <text class="t" x="348" y="314">语音复盘</text>
-        <text class="s" x="348" y="340">做：上传录音，本地转写后校对</text>
-        <text class="s" x="348" y="366">得到：要点、不足、改进方向</text></a>
+        <text class="t" x="348" y="314" data-k="l2.sp.t">语音复盘</text>
+        <text class="s" x="348" y="340" data-k="l2.sp.s1">做：上传录音，本地转写后校对</text>
+        <text class="s" x="348" y="366" data-k="l2.sp.s2">得到：要点、不足、改进方向</text></a>
 
       <a href="/#records" target="_top"><rect class="box info" x="656" y="150" width="176" height="124" rx="12"/>
-        <text class="t" x="674" y="178">学习记录</text>
-        <text class="s" x="674" y="204">做：确认薄弱点</text><text class="s" x="674" y="224">　　编辑提示偏好</text>
-        <text class="s" x="674" y="254">得到：练习题、闪卡草稿</text></a>
+        <text class="t" x="674" y="178" data-k="l2.rec.t">学习记录</text>
+        <text class="s" x="674" y="204" data-k="l2.rec.s1">做：确认薄弱点</text><text class="s" x="674" y="224" data-k="l2.rec.s2">　　编辑提示偏好</text>
+        <text class="s" x="674" y="254" data-k="l2.rec.s3">得到：练习题、闪卡草稿</text></a>
       <a href="/#cards" target="_top"><rect class="box" x="866" y="150" width="124" height="124" rx="12"/>
-        <text class="t" x="884" y="178">闪卡</text>
-        <text class="s" x="884" y="204">做：到期复习</text><text class="s" x="884" y="224">　　按难度评分</text>
-        <text class="s" x="884" y="254">得到：下次时间</text></a>
+        <text class="t" x="884" y="178" data-k="l2.fc.t">闪卡</text>
+        <text class="s" x="884" y="204" data-k="l2.fc.s1">做：到期复习</text><text class="s" x="884" y="224" data-k="l2.fc.s2">　　按难度评分</text>
+        <text class="s" x="884" y="254" data-k="l2.fc.s3">得到：下次时间</text></a>
 
       <path class="ar" d="M210 190C270 190 270 76 328 76"/><path class="ar" d="M210 212H328"/>
-      <text class="lbl" x="232" y="140">证据</text><text class="lbl" x="250" y="206">证据</text>
+      <text class="lbl" x="218" y="130" data-k="l2.ev">证据</text><text class="lbl" x="248" y="204" data-k="l2.ev">证据</text>
       <path class="ar" d="M566 100C620 100 610 175 654 182"/><path class="ar" d="M566 212H654"/><path class="ar" d="M566 345C620 345 610 250 654 246"/>
-      <text class="lbl" x="590" y="128">薄弱点</text><text class="lbl" x="592" y="206">薄弱点</text><text class="lbl" x="590" y="312">薄弱点</text>
-      <path class="ar" d="M832 212H864"/><text class="lbl" x="836" y="204">草稿</text>
-      <path class="ar" d="M690 150C690 128 600 128 568 120"/><text class="lbl" x="612" y="146">练习题</text>
-      <path class="ar hl" d="M744 150C744 40 640 30 568 40"/><text class="lbl" x="700" y="58">情境题（扩展 3）</text>
+      <text class="lbl" x="580" y="110" data-k="l2.gap">薄弱点</text><text class="lbl" x="592" y="204" data-k="l2.gap">薄弱点</text><text class="lbl" x="588" y="314" data-k="l2.gap">薄弱点</text>
+      <path class="ar" d="M832 212H864"/><text class="lbl" x="836" y="204" data-k="l2.draft">草稿</text>
+      <path class="ar" d="M690 150C690 128 600 128 568 120"/><text class="lbl" x="616" y="146" data-k="l2.pq">练习题</text>
+      <path class="ar hl" d="M744 150C744 40 640 30 568 40"/><text class="lbl" x="700" y="58" data-k="l2.sc">情境题（扩展 3）</text>
     </svg>
   </section>
 
   <!-- ③ 一次提交背后 -->
   <section>
-    <span class="lv">第 3 层 · 一次点击背后</span>
-    <h2>你点“提交讲解”之后发生的 5 步</h2>
-    <p>模拟面试的每次回答、情境题的作答，也走同一条流程。</p>
+    <span class="lv" data-k="l3.tag">第 3 层 · 一次点击背后</span>
+    <h2 data-k="l3.h2">你点“提交讲解”之后发生的 5 步</h2>
+    <p data-k="l3.p">模拟面试的每次回答、情境题的作答，也走同一条流程。</p>
     <svg viewBox="0 0 1000 410">
       <rect class="box" x="10" y="20" width="176" height="140" rx="12"/>
-        <text class="n" x="26" y="48">①</text><text class="t" x="46" y="48">存为新版本</text>
-        <text class="s" x="26" y="78">v1、v2、v3… 依次增加</text><text class="s" x="26" y="100">旧版本不会被修改</text>
+        <text class="n" x="26" y="48">①</text><text class="t" x="46" y="48" data-k="l3.s1t">存为新版本</text>
+        <text class="s" x="26" y="78" data-k="l3.s1a">v1、v2、v3… 依次增加</text><text class="s" x="26" y="100" data-k="l3.s1b">旧版本不会被修改</text>
       <rect class="box ok" x="214" y="20" width="176" height="140" rx="12"/>
-        <text class="n" x="230" y="48">②</text><text class="t" x="250" y="48">找证据</text>
-        <text class="s" x="230" y="78">只查已审核资料·优先级重排</text><text class="s" x="230" y="100">题目 → 前 3 条：E1–E3</text>
-        <text class="s" x="230" y="122">回答逐句核对 → 每句补 1 条</text><text class="s" x="230" y="144">题库相似题仅作参考</text>
+        <text class="n" x="230" y="48">②</text><text class="t" x="250" y="48" data-k="l3.s2t">找证据</text>
+        <text class="s" x="230" y="78" data-k="l3.s2a">只查已审核资料·优先级重排</text><text class="s" x="230" y="100" data-k="l3.s2b">题目 → 前 3 条：E1–E3</text>
+        <text class="s" x="230" y="122" data-k="l3.s2c">回答逐句核对 → 每句补 1 条</text><text class="s" x="230" y="144" data-k="l3.s2d">题库相似题仅作参考</text>
       <rect class="box hl" x="418" y="20" width="176" height="140" rx="12"/>
-        <text class="n" x="434" y="48">③</text><text class="t" x="454" y="48">AI 评估</text>
-        <text class="s" x="434" y="78">4 个维度，各打 1–5 分</text><text class="s" x="434" y="100">引用你的原话</text>
-        <text class="s" x="434" y="122">标注依据的证据编号</text><text class="s" x="434" y="144">参考你之前的版本</text>
+        <text class="n" x="434" y="48">③</text><text class="t" x="454" y="48" data-k="l3.s3t">AI 评估</text>
+        <text class="s" x="434" y="78" data-k="l3.s3a">4 个维度，各打 1–5 分</text><text class="s" x="434" y="100" data-k="l3.s3b">引用你的原话</text>
+        <text class="s" x="434" y="122" data-k="l3.s3c">标注依据的证据编号</text><text class="s" x="434" y="144" data-k="l3.s3d">参考你之前的版本</text>
       <rect class="box" x="622" y="20" width="176" height="140" rx="12"/>
-        <text class="n" x="638" y="48">④</text><text class="t" x="658" y="48">程序校验</text>
-        <text class="s" x="638" y="78">原话不在回答里 → 删除</text><text class="s" x="638" y="100">证据编号不存在 → 删除</text>
-        <text class="s" x="638" y="122">格式不对 → 重试 1 次</text>
+        <text class="n" x="638" y="48">④</text><text class="t" x="658" y="48" data-k="l3.s4t">程序校验</text>
+        <text class="s" x="638" y="78" data-k="l3.s4a">原话不在回答里 → 删除</text><text class="s" x="638" y="100" data-k="l3.s4b">证据编号不存在 → 删除</text>
+        <text class="s" x="638" y="122" data-k="l3.s4c">格式不对 → 重试 1 次</text>
       <rect class="box info" x="826" y="20" width="164" height="140" rx="12"/>
-        <text class="n" x="842" y="48">⑤</text><text class="t" x="862" y="48">你看到</text>
-        <text class="s" x="842" y="78">有依据的评分</text><text class="s" x="842" y="100">或“无法确定”</text>
-        <text class="s" x="842" y="122">或“评估不可用”</text><text class="s" x="842" y="144">不会编造分数</text>
+        <text class="n" x="842" y="48">⑤</text><text class="t" x="862" y="48" data-k="l3.s5t">你看到</text>
+        <text class="s" x="842" y="78" data-k="l3.s5a">有依据的评分</text><text class="s" x="842" y="100" data-k="l3.s5b">或“无法确定”</text>
+        <text class="s" x="842" y="122" data-k="l3.s5c">或“评估不可用”</text><text class="s" x="842" y="144" data-k="l3.s5d">不会编造分数</text>
       <path class="ar" d="M186 90H212"/><path class="ar" d="M390 90H416"/><path class="ar" d="M594 90H620"/><path class="ar" d="M798 90H824"/>
 
       <rect class="box ok" x="10" y="246" width="440" height="140" rx="12"/>
-        <text class="t" x="30" y="276">参考库（评分依据）</text>
-        <text class="s" x="30" y="304">你添加并审核过的资料（Markdown 文件）</text>
-        <text class="s" x="30" y="326">每份资料：来源、版本、审核状态、优先级 0–5</text>
-        <text class="s" x="30" y="348">有用 +0.5，没用 −1；最终分 = 检索分 × (1 + 0.1 × 优先级)</text>
-        <text class="s" x="30" y="370">检索：BM25 + 向量 → 混合 → 按优先级重排</text>
+        <text class="t" x="30" y="276" data-k="l3.ref.t">参考库（评分依据）</text>
+        <text class="s" x="30" y="304" data-k="l3.ref.s1">你添加并审核过的资料（Markdown 文件）</text>
+        <text class="s" x="30" y="326" data-k="l3.ref.s2">每份资料：来源、版本、审核状态、优先级 0–5</text>
+        <text class="s" x="30" y="348" data-k="l3.ref.s3">有用 +0.5，没用 −1；最终分 = 检索分 × (1 + 0.1 × 优先级)</text>
+        <text class="s" x="30" y="370" data-k="l3.ref.s4">检索：BM25 + 向量 → 混合 → 按优先级重排</text>
       <rect class="box info" x="550" y="246" width="440" height="140" rx="12"/>
-        <text class="t" x="570" y="276">学习记录（你的历史）</text>
-        <text class="s" x="570" y="304">题目、每一版作答、每次评估</text>
-        <text class="s" x="570" y="326">提示与反馈、面试会话、复盘</text>
-        <text class="s" x="570" y="348">薄弱点、闪卡与复习记录</text>
-        <text class="s" x="570" y="370">按学习者隔离，可一键删除</text>
-      <path class="ar hl" d="M302 244V162"/><text class="lbl" x="310" y="214">只读</text>
-      <path class="ar" d="M98 162C98 215 640 205 650 244"/><path class="ar" d="M908 162V244"/><text class="lbl" x="916" y="214">写入</text>
+        <text class="t" x="570" y="276" data-k="l3.rec.t">学习记录（你的历史）</text>
+        <text class="s" x="570" y="304" data-k="l3.rec.s1">题目、每一版作答、每次评估</text>
+        <text class="s" x="570" y="326" data-k="l3.rec.s2">提示与反馈、面试会话、复盘</text>
+        <text class="s" x="570" y="348" data-k="l3.rec.s3">薄弱点、闪卡与复习记录</text>
+        <text class="s" x="570" y="370" data-k="l3.rec.s4">按学习者隔离，可一键删除</text>
+      <path class="ar hl" d="M302 244V162"/><text class="lbl" x="310" y="214" data-k="l3.ro">只读</text>
+      <path class="ar" d="M98 162C98 215 640 205 650 244"/><path class="ar" d="M908 162V244"/><text class="lbl" x="916" y="214" data-k="l3.wr">写入</text>
       <path class="ar no" d="M548 330H454"/><text class="bad" x="500" y="318" text-anchor="middle">✕</text>
-      <text class="bad" x="500" y="404" text-anchor="middle">学习记录和 AI 生成的内容永远不会进入参考库</text>
+      <text class="bad" x="500" y="404" text-anchor="middle" data-k="l3.wall">学习记录和 AI 生成的内容永远不会进入参考库</text>
     </svg>
   </section>
 
   <!-- ④ 代码 -->
   <section>
-    <span class="lv">第 4 层 · 代码</span>
-    <h2>每一层只做一件事，上层调用下层</h2>
-    <p>都在 <code>Agent-design-share/app/</code> 目录下。想改 AI 的行为，只需要看 <code>agent.py</code>。</p>
+    <span class="lv" data-k="l4.tag">第 4 层 · 代码</span>
+    <h2 data-k="l4.h2">每一层只做一件事，上层调用下层</h2>
+    <p data-k="l4.p" data-html="1">都在 <code>Agent-design-share/app/</code> 目录下。想改 AI 的行为，只需要看 <code>agent.py</code>。</p>
     <svg viewBox="0 0 1000 360">
       <rect class="box plain" x="10" y="10" width="980" height="56" rx="12"/>
-        <text class="t" x="30" y="44">浏览器</text><text class="m" x="110" y="44">static/app.js</text><text class="s" x="240" y="44">6 个页面 = 6 个视图；所有内容转义后显示</text>
+        <text class="t" x="30" y="44" data-k="l4.br">浏览器</text><text class="m" x="110" y="44">static/app.js</text><text class="s" x="240" y="44" data-k="l4.brs">6 个页面 = 6 个视图；所有内容转义后显示</text>
       <g>
-        <rect class="box" x="10" y="92" width="152" height="64" rx="10"/><text class="m" x="24" y="118">api/knowledge.py</text><text class="s" x="24" y="140">知识库</text>
-        <rect class="box" x="175" y="92" width="152" height="64" rx="10"/><text class="m" x="189" y="118">api/practice.py</text><text class="s" x="189" y="140">练习·提示·情境·薄弱点</text>
-        <rect class="box" x="340" y="92" width="152" height="64" rx="10"/><text class="m" x="354" y="118">api/interview.py</text><text class="s" x="354" y="140">模拟面试</text>
-        <rect class="box" x="505" y="92" width="152" height="64" rx="10"/><text class="m" x="519" y="118">api/speech.py</text><text class="s" x="519" y="140">语音复盘</text>
-        <rect class="box" x="670" y="92" width="152" height="64" rx="10"/><text class="m" x="684" y="118">api/cards.py</text><text class="s" x="684" y="140">闪卡</text>
-        <rect class="box" x="835" y="92" width="155" height="64" rx="10"/><text class="m" x="849" y="118">api/me.py</text><text class="s" x="849" y="140">领域·用量·删除数据</text>
+        <rect class="box" x="10" y="92" width="152" height="64" rx="10"/><text class="m" x="24" y="118">api/knowledge.py</text><text class="s" x="24" y="140" data-k="l4.a1">知识库</text>
+        <rect class="box" x="175" y="92" width="152" height="64" rx="10"/><text class="m" x="189" y="118">api/practice.py</text><text class="s" x="189" y="140" data-k="l4.a2">练习·提示·情境·薄弱点</text>
+        <rect class="box" x="340" y="92" width="152" height="64" rx="10"/><text class="m" x="354" y="118">api/interview.py</text><text class="s" x="354" y="140" data-k="l4.a3">模拟面试</text>
+        <rect class="box" x="505" y="92" width="152" height="64" rx="10"/><text class="m" x="519" y="118">api/speech.py</text><text class="s" x="519" y="140" data-k="l4.a4">语音复盘</text>
+        <rect class="box" x="670" y="92" width="152" height="64" rx="10"/><text class="m" x="684" y="118">api/cards.py</text><text class="s" x="684" y="140" data-k="l4.a5">闪卡</text>
+        <rect class="box" x="835" y="92" width="155" height="64" rx="10"/><text class="m" x="849" y="118">api/me.py</text><text class="s" x="849" y="140" data-k="l4.a6">领域·用量·删除数据</text>
       </g>
       <rect class="box hl" x="10" y="182" width="560" height="70" rx="12"/>
-        <text class="m" x="30" y="210">agent.py</text><text class="s" x="110" y="210">所有 AI 步骤和 prompt 都在这里</text>
-        <text class="s" x="30" y="236">评估 · 面试官 · 提示与偏好 · 情境题与检查 · 复盘 · 闪卡生成</text>
+        <text class="m" x="30" y="210">agent.py</text><text class="s" x="110" y="210" data-k="l4.ag1">所有 AI 步骤和 prompt 都在这里</text>
+        <text class="s" x="30" y="236" data-k="l4.ag2">评估 · 面试官 · 提示与偏好 · 情境题与检查 · 复盘 · 闪卡生成</text>
       <rect class="box" x="590" y="182" width="170" height="70" rx="12"/>
-        <text class="m" x="608" y="210">srs.py</text><text class="s" x="608" y="236">SM-2 / 固定 1·3·7 天</text>
+        <text class="m" x="608" y="210">srs.py</text><text class="s" x="608" y="236" data-k="l4.srs">SM-2 / 固定 1·3·7 天</text>
       <rect class="box" x="780" y="182" width="210" height="70" rx="12" stroke-dasharray="5 4"/>
-        <text class="m" x="798" y="210">asr_worker.py</text><text class="s" x="798" y="236">独立进程：SenseVoice 转写</text>
+        <text class="m" x="798" y="210">asr_worker.py</text><text class="s" x="798" y="236" data-k="l4.asr">独立进程：SenseVoice 转写</text>
       <rect class="box" x="10" y="278" width="300" height="70" rx="12"/>
-        <text class="m" x="30" y="306">llm.py</text><text class="s" x="30" y="332">唯一的模型入口：校验、重试、记录用量</text>
+        <text class="m" x="30" y="306">llm.py</text><text class="s" x="30" y="332" data-k="l4.llm">唯一的模型入口：校验、重试、记录用量</text>
       <rect class="box ok" x="330" y="278" width="320" height="70" rx="12"/>
-        <text class="m" x="350" y="306">retrieval.py</text><text class="s" x="350" y="332">参考库：Memsearch + Milvus，4 种检索</text>
+        <text class="m" x="350" y="306">retrieval.py</text><text class="s" x="350" y="332" data-k="l4.ret">参考库：Memsearch + Milvus，4 种检索</text>
       <rect class="box info" x="670" y="278" width="320" height="70" rx="12"/>
-        <text class="m" x="690" y="306">db.py</text><text class="s" x="690" y="332">学习记录：一个 SQLite 文件</text>
+        <text class="m" x="690" y="306">db.py</text><text class="s" x="690" y="332" data-k="l4.db">学习记录：一个 SQLite 文件</text>
       <path class="ar" d="M500 66V90"/><path class="ar" d="M500 156V180"/><path class="ar" d="M160 252V276"/><path class="ar" d="M490 252V276"/><path class="ar" d="M675 252C675 265 760 262 780 276"/>
     </svg>
-    <div class="card note">外部依赖：模型服务（.env 中配置，评估、提示、出题、复盘时调用）· bge-m3 向量模型与 jieba 分词（本地）· SenseVoice（本地，独立进程）</div>
+    <div class="card note" data-k="l4.note">外部依赖：模型服务（.env 中配置，评估、提示、出题、复盘时调用）· bge-m3 向量模型与 jieba 分词（本地）· SenseVoice（本地，独立进程）</div>
   </section>
 </div>
+<script src="/static/i18n.js"></script>
+<script>
+const ARCH = {
+  'zh-CN': {
+    title: '面壁 · 架构图',
+    back: '← 回到应用',
+    h1: '面壁 · 架构图',
+    intro: '从上往下读：先看为什么做，再看你在界面上做什么，然后看一次点击背后发生了什么，最后看代码。方框可以点击，会跳到对应页面。',
+    'l1.tag': '第 1 层 · 目的', 'l1.h2': '看过 ≠ 会讲：把资料变成讲得清楚、用得出来的能力', 'l1.p': '一个循环，每一步都留下记录，下一步会用到这些记录。',
+    'l1.b1t': '整理资料', 'l1.b1s': '笔记、面经、教材摘录',
+    'l1.b2t': '练习', 'l1.b2s': '讲解 · 模拟面试 · 录音',
+    'l1.b3t': '有依据的反馈', 'l1.b3s': '对照你的资料打分',
+    'l1.b4t': '记下薄弱点', 'l1.b4s': '你确认后才算数',
+    'l1.b5t': '复习、再练', 'l1.b5s': '闪卡 · 情境题',
+    'l1.loop': '回到练习，直到讲得清楚',
+    'l2.tag': '第 2 层 · 你在界面上做什么', 'l2.h2': '6 个页面，各自做一件事，彼此传递记录', 'l2.p': '箭头上写的是传过去的东西。左侧栏的每一项对应这里的一个方框。',
+    'l2.kb.t': '知识库', 'l2.kb.s1': '做：添加资料，勾选“已审核”', 'l2.kb.s2': '　　对检索结果标有用 / 没用', 'l2.kb.s3': '得到：评分的依据',
+    'l2.pr.t': '练习（费曼讲解）', 'l2.pr.s1': '做：用自己的话讲解', 'l2.pr.s2': '　　要提示并评价它（扩展 1）', 'l2.pr.s3': '得到：分数、证据、版本对比（扩展 2）', 'l2.pr.s4': '　　　同一概念在各情境的得分',
+    'l2.iv.t': '模拟面试', 'l2.iv.s1': '做：回答 AI 面试官', 'l2.iv.s2': '得到：追问或换题、每题评估、', 'l2.iv.s3': '　　　面试总结',
+    'l2.sp.t': '语音复盘', 'l2.sp.s1': '做：上传录音，本地转写后校对', 'l2.sp.s2': '得到：要点、不足、改进方向',
+    'l2.rec.t': '学习记录', 'l2.rec.s1': '做：确认薄弱点', 'l2.rec.s2': '　　编辑提示偏好', 'l2.rec.s3': '得到：练习题、闪卡草稿',
+    'l2.fc.t': '闪卡', 'l2.fc.s1': '做：到期复习', 'l2.fc.s2': '　　按难度评分', 'l2.fc.s3': '得到：下次时间',
+    'l2.ev': '证据', 'l2.gap': '薄弱点', 'l2.draft': '草稿', 'l2.pq': '练习题', 'l2.sc': '情境题（扩展 3）',
+    'l3.tag': '第 3 层 · 一次点击背后', 'l3.h2': '你点“提交讲解”之后发生的 5 步', 'l3.p': '模拟面试的每次回答、情境题的作答，也走同一条流程。',
+    'l3.s1t': '存为新版本', 'l3.s1a': 'v1、v2、v3… 依次增加', 'l3.s1b': '旧版本不会被修改',
+    'l3.s2t': '找证据', 'l3.s2a': '只查已审核资料·优先级重排', 'l3.s2b': '题目 → 前 3 条：E1–E3', 'l3.s2c': '回答逐句核对 → 每句补 1 条', 'l3.s2d': '题库相似题仅作参考',
+    'l3.s3t': 'AI 评估', 'l3.s3a': '4 个维度，各打 1–5 分', 'l3.s3b': '引用你的原话', 'l3.s3c': '标注依据的证据编号', 'l3.s3d': '参考你之前的版本',
+    'l3.s4t': '程序校验', 'l3.s4a': '原话不在回答里 → 删除', 'l3.s4b': '证据编号不存在 → 删除', 'l3.s4c': '格式不对 → 重试 1 次',
+    'l3.s5t': '你看到', 'l3.s5a': '有依据的评分', 'l3.s5b': '或“无法确定”', 'l3.s5c': '或“评估不可用”', 'l3.s5d': '不会编造分数',
+    'l3.ref.t': '参考库（评分依据）', 'l3.ref.s1': '你添加并审核过的资料（Markdown 文件）', 'l3.ref.s2': '每份资料：来源、版本、审核状态、优先级 0–5', 'l3.ref.s3': '有用 +0.5，没用 −1；最终分 = 检索分 × (1 + 0.1 × 优先级)', 'l3.ref.s4': '检索：BM25 + 向量 → 混合 → 按优先级重排',
+    'l3.rec.t': '学习记录（你的历史）', 'l3.rec.s1': '题目、每一版作答、每次评估', 'l3.rec.s2': '提示与反馈、面试会话、复盘', 'l3.rec.s3': '薄弱点、闪卡与复习记录', 'l3.rec.s4': '按学习者隔离，可一键删除',
+    'l3.ro': '只读', 'l3.wr': '写入', 'l3.wall': '学习记录和 AI 生成的内容永远不会进入参考库',
+    'l4.tag': '第 4 层 · 代码', 'l4.h2': '每一层只做一件事，上层调用下层', 'l4.p': '都在 <code>Agent-design-share/app/</code> 目录下。想改 AI 的行为，只需要看 <code>agent.py</code>。',
+    'l4.br': '浏览器', 'l4.brs': '6 个页面 = 6 个视图；所有内容转义后显示',
+    'l4.a1': '知识库', 'l4.a2': '练习·提示·情境·薄弱点', 'l4.a3': '模拟面试', 'l4.a4': '语音复盘', 'l4.a5': '闪卡', 'l4.a6': '领域·用量·删除数据',
+    'l4.ag1': '所有 AI 步骤和 prompt 都在这里', 'l4.ag2': '评估 · 面试官 · 提示与偏好 · 情境题与检查 · 复盘 · 闪卡生成',
+    'l4.srs': 'SM-2 / 固定 1·3·7 天', 'l4.asr': '独立进程：SenseVoice 转写',
+    'l4.llm': '唯一的模型入口：校验、重试、记录用量', 'l4.ret': '参考库：Memsearch + Milvus，4 种检索', 'l4.db': '学习记录：一个 SQLite 文件',
+    'l4.note': '外部依赖：模型服务（.env 中配置，评估、提示、出题、复盘时调用）· bge-m3 向量模型与 jieba 分词（本地）· SenseVoice（本地，独立进程）',
+  },
+  'zh-TW': {
+    title: '面壁 · 架構圖',
+    back: '← 回到應用',
+    h1: '面壁 · 架構圖',
+    intro: '從上往下讀：先看為什麼做，再看你在介面上做什麼，然後看一次點擊背後發生了什麼，最後看程式碼。方框可以點擊，會跳到對應頁面。',
+    'l1.tag': '第 1 層 · 目的', 'l1.h2': '看過 ≠ 會講：把資料變成講得清楚、用得出來的能力', 'l1.p': '一個循環，每一步都留下記錄，下一步會用到這些記錄。',
+    'l1.b1t': '整理資料', 'l1.b1s': '筆記、面經、教材摘錄',
+    'l1.b2t': '練習', 'l1.b2s': '講解 · 模擬面試 · 錄音',
+    'l1.b3t': '有依據的回饋', 'l1.b3s': '對照你的資料打分',
+    'l1.b4t': '記下薄弱點', 'l1.b4s': '你確認後才算數',
+    'l1.b5t': '複習、再練', 'l1.b5s': '閃卡 · 情境題',
+    'l1.loop': '回到練習，直到講得清楚',
+    'l2.tag': '第 2 層 · 你在介面上做什麼', 'l2.h2': '6 個頁面，各自做一件事，彼此傳遞記錄', 'l2.p': '箭頭上寫的是傳過去的東西。左側欄的每一項對應這裡的一個方框。',
+    'l2.kb.t': '知識庫', 'l2.kb.s1': '做：新增資料，勾選「已審核」', 'l2.kb.s2': '　　對檢索結果標有用 / 沒用', 'l2.kb.s3': '得到：評分的依據',
+    'l2.pr.t': '練習（費曼講解）', 'l2.pr.s1': '做：用自己的話講解', 'l2.pr.s2': '　　要提示並評價它（擴展 1）', 'l2.pr.s3': '得到：分數、證據、版本對比（擴展 2）', 'l2.pr.s4': '　　　同一概念在各情境的得分',
+    'l2.iv.t': '模擬面試', 'l2.iv.s1': '做：回答 AI 面試官', 'l2.iv.s2': '得到：追問或換題、每題評估、', 'l2.iv.s3': '　　　面試總結',
+    'l2.sp.t': '語音複盤', 'l2.sp.s1': '做：上傳錄音，本地轉寫後校對', 'l2.sp.s2': '得到：要點、不足、改進方向',
+    'l2.rec.t': '學習記錄', 'l2.rec.s1': '做：確認薄弱點', 'l2.rec.s2': '　　編輯提示偏好', 'l2.rec.s3': '得到：練習題、閃卡草稿',
+    'l2.fc.t': '閃卡', 'l2.fc.s1': '做：到期複習', 'l2.fc.s2': '　　按難度評分', 'l2.fc.s3': '得到：下次時間',
+    'l2.ev': '證據', 'l2.gap': '薄弱點', 'l2.draft': '草稿', 'l2.pq': '練習題', 'l2.sc': '情境題（擴展 3）',
+    'l3.tag': '第 3 層 · 一次點擊背後', 'l3.h2': '你點「提交講解」之後發生的 5 步', 'l3.p': '模擬面試的每次回答、情境題的作答，也走同一條流程。',
+    'l3.s1t': '存為新版本', 'l3.s1a': 'v1、v2、v3… 依序增加', 'l3.s1b': '舊版本不會被修改',
+    'l3.s2t': '找證據', 'l3.s2a': '只查已審核資料·優先級重排', 'l3.s2b': '題目 → 前 3 條：E1–E3', 'l3.s2c': '回答逐句核對 → 每句補 1 條', 'l3.s2d': '題庫相似題僅作參考',
+    'l3.s3t': 'AI 評估', 'l3.s3a': '4 個維度，各打 1–5 分', 'l3.s3b': '引用你的原話', 'l3.s3c': '標註依據的證據編號', 'l3.s3d': '參考你之前的版本',
+    'l3.s4t': '程式校驗', 'l3.s4a': '原話不在回答裡 → 刪除', 'l3.s4b': '證據編號不存在 → 刪除', 'l3.s4c': '格式不對 → 重試 1 次',
+    'l3.s5t': '你看到', 'l3.s5a': '有依據的評分', 'l3.s5b': '或「無法確定」', 'l3.s5c': '或「評估不可用」', 'l3.s5d': '不會編造分數',
+    'l3.ref.t': '參考庫（評分依據）', 'l3.ref.s1': '你新增並審核過的資料（Markdown 檔案）', 'l3.ref.s2': '每份資料：來源、版本、審核狀態、優先級 0–5', 'l3.ref.s3': '有用 +0.5，沒用 −1；最終分 = 檢索分 × (1 + 0.1 × 優先級)', 'l3.ref.s4': '檢索：BM25 + 向量 → 混合 → 按優先級重排',
+    'l3.rec.t': '學習記錄（你的歷史）', 'l3.rec.s1': '題目、每一版作答、每次評估', 'l3.rec.s2': '提示與回饋、面試會話、複盤', 'l3.rec.s3': '薄弱點、閃卡與複習記錄', 'l3.rec.s4': '按學習者隔離，可一鍵刪除',
+    'l3.ro': '唯讀', 'l3.wr': '寫入', 'l3.wall': '學習記錄和 AI 生成的內容永遠不會進入參考庫',
+    'l4.tag': '第 4 層 · 程式碼', 'l4.h2': '每一層只做一件事，上層呼叫下層', 'l4.p': '都在 <code>Agent-design-share/app/</code> 目錄下。想改 AI 的行為，只需要看 <code>agent.py</code>。',
+    'l4.br': '瀏覽器', 'l4.brs': '6 個頁面 = 6 個視圖；所有內容轉義後顯示',
+    'l4.a1': '知識庫', 'l4.a2': '練習·提示·情境·薄弱點', 'l4.a3': '模擬面試', 'l4.a4': '語音複盤', 'l4.a5': '閃卡', 'l4.a6': '領域·用量·刪除資料',
+    'l4.ag1': '所有 AI 步驟和 prompt 都在這裡', 'l4.ag2': '評估 · 面試官 · 提示與偏好 · 情境題與檢查 · 複盤 · 閃卡生成',
+    'l4.srs': 'SM-2 / 固定 1·3·7 天', 'l4.asr': '獨立行程：SenseVoice 轉寫',
+    'l4.llm': '唯一的模型入口：校驗、重試、記錄用量', 'l4.ret': '參考庫：Memsearch + Milvus，4 種檢索', 'l4.db': '學習記錄：一個 SQLite 檔案',
+    'l4.note': '外部依賴：模型服務（.env 中設定，評估、提示、出題、複盤時呼叫）· bge-m3 向量模型與 jieba 分詞（本地）· SenseVoice（本地，獨立行程）',
+  },
+  en: {
+    title: 'Mianbi · Architecture',
+    back: '← Back to app',
+    h1: 'Mianbi · Architecture',
+    intro: 'Read top to bottom: why it exists, what you do in the UI, what happens behind one click, and the code layout. Click any box to jump to that view.',
+    'l1.tag': 'Layer 1 · Purpose', 'l1.h2': 'Reading ≠ Explaining: turn notes into clear, usable mastery', 'l1.p': 'A closed loop where every step leaves records used by the next step.',
+    'l1.b1t': 'Curate Notes', 'l1.b1s': 'Notes, prep, excerpts',
+    'l1.b2t': 'Practice', 'l1.b2s': 'Explain · Interview · Audio',
+    'l1.b3t': 'Grounded Eval', 'l1.b3s': 'Scored vs. your sources',
+    'l1.b4t': 'Log Gaps', 'l1.b4s': 'Confirmed by you first',
+    'l1.b5t': 'Review & Retry', 'l1.b5s': 'Flashcards · Scenarios',
+    'l1.loop': 'Return to practice until you can explain it clearly',
+    'l2.tag': 'Layer 2 · Views & Flows', 'l2.h2': '6 pages, one job each, passing records along', 'l2.p': 'Arrows show what flows between pages. Each sidebar tab maps to one box.',
+    'l2.kb.t': 'Knowledge Base', 'l2.kb.s1': 'Do: add docs & mark Reviewed', 'l2.kb.s2': '    rate hits helpful / not', 'l2.kb.s3': 'Get: scoring evidence',
+    'l2.pr.t': 'Practice (Feynman)', 'l2.pr.s1': 'Do: explain in your own words', 'l2.pr.s2': '    ask & rate hints (Ext 1)', 'l2.pr.s3': 'Get: scores, evidence, diffs (Ext 2)', 'l2.pr.s4': '     scores across contexts',
+    'l2.iv.t': 'Mock Interview', 'l2.iv.s1': 'Do: answer AI interviewer', 'l2.iv.s2': 'Get: follow-ups, per-turn eval,', 'l2.iv.s3': '     session summary',
+    'l2.sp.t': 'Speech Reflection', 'l2.sp.s1': 'Do: upload audio & edit text', 'l2.sp.s2': 'Get: points, gaps, next steps',
+    'l2.rec.t': 'Records', 'l2.rec.s1': 'Do: confirm gaps', 'l2.rec.s2': '    edit hint prefs', 'l2.rec.s3': 'Get: practice & cards',
+    'l2.fc.t': 'Flashcards', 'l2.fc.s1': 'Do: review due', 'l2.fc.s2': '    rate recall', 'l2.fc.s3': 'Get: next date',
+    'l2.ev': 'Evidence', 'l2.gap': 'Gaps', 'l2.draft': 'Draft', 'l2.pq': 'Practice', 'l2.sc': 'Scenarios (Ext 3)',
+    'l3.tag': 'Layer 3 · Behind One Click', 'l3.h2': '5 steps after clicking "Submit explanation"', 'l3.p': 'Mock interview turns and scenario answers run through the exact same pipeline.',
+    'l3.s1t': 'Save Version', 'l3.s1a': 'v1, v2, v3… append-only', 'l3.s1b': 'Old versions stay intact',
+    'l3.s2t': 'Retrieve', 'l3.s2a': 'Reviewed only · reranked', 'l3.s2b': 'Question → top 3 (E1–E3)', 'l3.s2c': 'Claim check → +1/sentence', 'l3.s2d': 'Similar Qs for ref only',
+    'l3.s3t': 'AI Evaluate', 'l3.s3a': '4 dims, 1–5 scale each', 'l3.s3b': 'Quote your exact words', 'l3.s3c': 'Cite evidence IDs (E1…)', 'l3.s3d': 'Compare with past versions',
+    'l3.s4t': 'Verify Output', 'l3.s4a': 'Bad quote → stripped', 'l3.s4b': 'Invalid E-ID → stripped', 'l3.s4c': 'Bad schema → retry 1×',
+    'l3.s5t': 'Shown to You', 'l3.s5a': 'Grounded score', 'l3.s5b': 'or "Uncertain"', 'l3.s5c': 'or "Unavailable"', 'l3.s5d': 'Never fabricated',
+    'l3.ref.t': 'Reference Store (Evidence)', 'l3.ref.s1': 'Reviewed Markdown materials added by you', 'l3.ref.s2': 'Per doc: source, version, review status, priority 0–5', 'l3.ref.s3': 'Helpful +0.5, Not −1; final = hybrid × (1 + 0.1 × priority)', 'l3.ref.s4': 'Search: BM25 + dense → hybrid → priority rerank',
+    'l3.rec.t': 'Learning Store (Your History)', 'l3.rec.s1': 'Questions, all attempt versions, evaluations', 'l3.rec.s2': 'Hints & feedback, interview sessions, reflections', 'l3.rec.s3': 'Gaps, flashcards, and review logs', 'l3.rec.s4': 'Isolated per learner; one-click delete',
+    'l3.ro': 'Read', 'l3.wr': 'Write', 'l3.wall': 'Learning records & AI outputs never enter the Reference Store',
+    'l4.tag': 'Layer 4 · Code', 'l4.h2': 'One responsibility per layer; top calls bottom', 'l4.p': 'All under <code>Agent-design-share/app/</code>. To adjust AI behavior, check <code>agent.py</code>.',
+    'l4.br': 'Browser', 'l4.brs': '6 pages = 6 views; all dynamic text escaped',
+    'l4.a1': 'Knowledge Base', 'l4.a2': 'Practice·Hints·Gaps', 'l4.a3': 'Mock Interview', 'l4.a4': 'Speech Reflection', 'l4.a5': 'Flashcards', 'l4.a6': 'Domains·Usage·Me',
+    'l4.ag1': 'All AI steps and prompts live here', 'l4.ag2': 'Evaluator · Interviewer · Hints/Prefs · Scenarios · Reflection · Cards',
+    'l4.srs': 'SM-2 / Fixed 1·3·7d', 'l4.asr': 'Subprocess: SenseVoice ASR',
+    'l4.llm': 'Single LLM entry: validate, retry, log usage', 'l4.ret': 'Reference store: Memsearch + Milvus (4 modes)', 'l4.db': 'Learning store: single SQLite file',
+    'l4.note': 'External deps: LLM API (.env, used for eval/hints/questions/reflection) · bge-m3 embeddings & jieba (local) · SenseVoice ASR (local subprocess)',
+  },
+};
+
+function renderArch() {
+  const dict = ARCH[I18N.lang] || ARCH['zh-CN'];
+  document.title = dict.title;
+  document.querySelectorAll('[data-k]').forEach(el => {
+    const val = dict[el.dataset.k];
+    if (val === undefined) return;
+    if (el.dataset.html) el.innerHTML = val;
+    else el.textContent = val;
+  });
+  document.querySelectorAll('#lang-switch button').forEach(b => b.classList.toggle('on', b.dataset.lang === I18N.lang));
+}
+
+function setArchLang(code) {
+  I18N.setLang(code);
+  renderArch();
+}
+
+renderArch();
+</script>
 </body>
 </html>
