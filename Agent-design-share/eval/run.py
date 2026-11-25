@@ -494,8 +494,27 @@ async def cmd_annotate(a):
 
 # ── stats ───────────────────────────────────────────────────────────────
 
+def _norm(v):
+    """"5", "5.0" and 5 are the same rating."""
+    v = str(v).strip()
+    try:
+        f = float(v)
+        return str(int(f)) if f == int(f) else str(f)
+    except ValueError:
+        return v
+
+
+def _pairs(r1: list, r2: list) -> list:
+    return [(_norm(x), _norm(y)) for x, y in zip(r1, r2) if str(x).strip() != "" and str(y).strip() != ""]
+
+
+def agreement(r1: list, r2: list) -> float:
+    pairs = _pairs(r1, r2)
+    return sum(x == y for x, y in pairs) / len(pairs) if pairs else float("nan")
+
+
 def kappa(r1: list, r2: list) -> float:
-    pairs = [(x, y) for x, y in zip(r1, r2) if x != "" and y != ""]
+    pairs = _pairs(r1, r2)
     if not pairs:
         return float("nan")
     cats = sorted({c for p in pairs for c in p})
@@ -508,9 +527,10 @@ def cmd_stats(a):
     rows = list(csv.DictReader(open(a.sheet, encoding="utf-8")))
     key = {k["item"]: k for k in jl(Path(a.sheet).with_suffix(".key.jsonl"))}
     cols = sorted({c[:-3] for c in rows[0] if c.endswith("_r1")})
-    print("pre-adjudication agreement (Cohen's kappa):")
+    print("pre-adjudication agreement (Cohen's kappa; with skewed labels kappa can be low despite high raw agreement):")
     for c in cols:
-        print(f"  {c:<20} {kappa([r[c + '_r1'] for r in rows], [r[c + '_r2'] for r in rows]):.2f}")
+        r1, r2 = [r[c + "_r1"] for r in rows], [r[c + "_r2"] for r in rows]
+        print(f"  {c:<20} {kappa(r1, r2):.2f}   raw agreement {agreement(r1, r2):.2f}  n={len(_pairs(r1, r2))}")
     def rated(r, col):
         vals = [float(r[f"{col}_{x}"]) for x in ("r1", "r2") if r.get(f"{col}_{x}", "") != ""]
         return sum(vals) / len(vals) if vals else None

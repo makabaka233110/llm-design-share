@@ -134,7 +134,7 @@ weighted 与 hybrid 之差按题做配对 bootstrap，nDCG@3 在 4 种设置下�
 | hints | `fits_preference` | 是否符合 `target_preference` 描述的偏好（1–5） |
 | | `too_direct` / `too_vague` | 是否直接泄露答案 / 是否空泛到没有方向（0 或 1） |
 | | `useful` / `factually_correct` | 是否有帮助（1–5）/ 内容是否正确（0 或 1） |
-| history | `recurring_identified` | 若历史中确实有反复出现的误解，反馈是否点了出来（0 或 1；没有时留空） |
+| history | `recurring_identified` | 若历史中确实有反复出现的误解，反馈是否指出它**反复出现**（0 或 1；没有时留空）。只指出当前回答里有这个错误、没说之前也犯过，记 0 |
 | | `false_recurring` | 是否把已改正的问题说成仍然存在（0 或 1） |
 | | `suggestion_relevance` | 修改建议是否针对这个学习者的历史问题，而不是泛泛而谈（1–5） |
 | scenarios | `concept_alignment` | 是否仍然考查原题的核心概念（1–5） |

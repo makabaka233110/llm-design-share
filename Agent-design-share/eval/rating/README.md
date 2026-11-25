@@ -1,5 +1,7 @@
 # 人工评分包
 
+> 2026-11-25：因时间所限，这些表已由两名独立的 LLM 评分员（Claude Sonnet 5.5，盲评）填写，**不是人工评测**。结果和局限见 [`llm/README.md`](llm/README.md)。下面的空白表仍可以给真人评分，或者用来抽查。
+
 proposal §4 中所有要求人工完成的评测，以及对应的表。表都是由 DeepSeek `deepseek-flash` 在 2026-11-24 的真实运行生成的（相关性表和历史标签表由 `eval/run.py annotate` 生成）。各列含义见 `eval/README.md`「标注指南」。
 
 | # | proposal 原文 | 表 | 几个人 | 行数 × 列数 | 每人大约 |
