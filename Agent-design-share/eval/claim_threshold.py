@@ -1,4 +1,4 @@
-"""Choose the relevance floor for claim-check passages (迭代记录.md: irrelevant passages attached to claims).
+"""Choose the relevance floor for claim-check passages (ITERATION_LOG.md: irrelevant passages attached to claims).
 
 For every sentence of every answer, the evaluator gets the most similar of its top 3 passages. Without a floor a
 sentence with no matching material still gets *some* passage (a SWOT answer was "checked" against TIME_WAIT).

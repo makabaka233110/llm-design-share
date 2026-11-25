@@ -1,7 +1,7 @@
 """Arithmetic is done by the program, not the model.
 
 The evaluator (an LLM) judged a correct answer wrong because it could not keep its own arithmetic straight
-(迭代记录.md). So every "expression = result" in the learner's answer is computed here, and the results are
+(ITERATION_LOG.md). So every "expression = result" in the learner's answer is computed here, and the results are
 given to the evaluator as facts. Its job is limited to judging the method (formula, scope, reasoning). Numbers
 the evaluator writes in its own feedback are checked here too.
 """

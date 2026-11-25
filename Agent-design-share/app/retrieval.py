@@ -214,7 +214,7 @@ def claims(answer: str) -> list[str]:
 
 
 # relevance floors (bge-m3 cosine), chosen on eval/data dev and reported on test by eval/claim_threshold.py:
-# question top-k keeps recall >= 0.95, claims trade a little recall for precision (迭代记录.md)
+# question top-k keeps recall >= 0.95, claims trade a little recall for precision (ITERATION_LOG.md)
 EVIDENCE_FLOOR = 0.50
 CLAIM_FLOOR = 0.55
 CLAIM_CANDIDATES = 3  # per claim: the most similar of the top 3 is used

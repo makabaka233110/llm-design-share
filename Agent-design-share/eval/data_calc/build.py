@@ -1,4 +1,4 @@
-"""Builds eval/data_calc: calculation questions for the program-arithmetic experiment (迭代记录.md).
+"""Builds eval/data_calc: calculation questions for the program-arithmetic experiment (ITERATION_LOG.md).
 
 Every family has one reference passage and three answers:
   strong  right method, right arithmetic

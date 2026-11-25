@@ -69,7 +69,7 @@ class EvalOut(BaseModel):
 def overall(scores: dict | None) -> float | None:
     """Overall score shown to the learner: mean of the four dimensions, but a wrong core concept
     (correctness <= 2) caps it at the correctness score, so fluent wording cannot lift a wrong answer to 3.5
-    (迭代记录.md; checked offline on the DeepSeek runs before it went in)."""
+    (ITERATION_LOG.md; checked offline on the DeepSeek runs before it went in)."""
     if not scores:
         return None
     m = sum(scores.values()) / len(scores)
