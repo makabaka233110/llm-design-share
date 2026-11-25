@@ -81,6 +81,29 @@ def ndcg(ranked: list[str], relevant: set[str], k: int) -> float:
     return dcg / ideal if ideal else 0.0
 
 
+async def top_k(retrieval, pid: dict, question: str, k: int, mode: str) -> list[str]:
+    """The k unique passages a mode ranks first (retrieval returns chunks, so over-fetch and dedupe)."""
+    hits = await retrieval.retrieve(USER, question, k * 4, mode)
+    return list(dict.fromkeys(pid[h["doc_id"]] for h in hits))[:k]
+
+
+async def replay_feedback(a, retrieval, pid: dict, dev: list[dict]):
+    """Priorities come from learner feedback (proposal §3). Simulated on dev queries only (test labels are never
+    used). The learner sees the weighted top-k and clicks:
+      strict:  relevant -> useful, everything else -> not useful
+      quality: relevant -> useful, labelled low-quality ("weak") -> not useful, merely off-topic -> no click"""
+    from app import db
+    doc_of = {v: k for k, v in pid.items()}
+    for _ in range(a.feedback_rounds):
+        for q in dev:
+            for p in await top_k(retrieval, pid, q["question"], a.k, "weighted"):
+                if a.feedback_policy == "strict" or p in q["relevant"] or p in q.get("weak", []):
+                    retrieval.apply_feedback(db.row("SELECT * FROM docs WHERE id=?", doc_of[p]), p in q["relevant"])
+    pr = [d["priority"] for d in db.rows("SELECT priority FROM docs")]
+    print(f"feedback replay ({a.feedback_policy}): {len(dev)} dev queries x {a.feedback_rounds} round(s); priorities "
+          f"min={min(pr)} max={max(pr)} changed={sum(p != retrieval.P_DEFAULT for p in pr)}/{len(pr)}")
+
+
 async def cmd_retrieval(a):
     boot_app()
     from app import retrieval
@@ -89,31 +112,16 @@ async def cmd_retrieval(a):
     dev = [q for q in allq if q.get("split") == "dev"]
     queries = [q for q in split(allq, a.split) if not (dev and a.feedback_rounds and q.get("split") == "dev")]
     if a.feedback_rounds and dev:
-        # Priorities come from learner feedback (proposal §3). Simulated on dev queries only (test labels are never
-        # used; dev queries are excluded from scoring). The learner sees the weighted top-k and clicks:
-        #   strict:  relevant -> useful, everything else -> not useful
-        #   quality: relevant -> useful, labelled low-quality ("weak") -> not useful, merely off-topic -> no click
-        from app import db
-        doc_of = {v: k for k, v in pid.items()}
-        for _ in range(a.feedback_rounds):
-            for q in dev:
-                hits = await retrieval.retrieve(USER, q["question"], a.k * 4, "weighted")
-                for p in list(dict.fromkeys(pid[h["doc_id"]] for h in hits))[:a.k]:
-                    if a.feedback_policy == "strict" or p in q["relevant"] or p in q.get("weak", []):
-                        retrieval.apply_feedback(db.row("SELECT * FROM docs WHERE id=?", doc_of[p]), p in q["relevant"])
-        pr = [d["priority"] for d in db.rows("SELECT priority FROM docs")]
-        print(f"feedback replay ({a.feedback_policy}): {len(dev)} dev queries x {a.feedback_rounds} round(s); priorities "
-              f"min={min(pr)} max={max(pr)} changed={sum(p != retrieval.P_DEFAULT for p in pr)}/{len(pr)}; "
-              f"scoring {len(queries)} non-dev queries")
+        await replay_feedback(a, retrieval, pid, dev)
+        print(f"scoring {len(queries)} non-dev queries")
     elif not any(p.get("priority") is not None for p in jl(a.data / "passages.jsonl")):
         print("note: no dev feedback and no preset priorities -> every priority is 2, so weighted ranks == hybrid")
     rows, per = [], defaultdict(lambda: defaultdict(list))
     for mode in retrieval.MODES:
         for q in queries:
             t0 = time.perf_counter()
-            hits = await retrieval.retrieve(USER, q["question"], a.k * 4, mode)  # chunks -> unique passages
+            ranked = await top_k(retrieval, pid, q["question"], a.k, mode)
             ms = (time.perf_counter() - t0) * 1000
-            ranked = list(dict.fromkeys(pid[h["doc_id"]] for h in hits))[:a.k]
             rel = set(q["relevant"])
             r = {"mode": mode, "query": q["id"], "domain": q.get("domain", ""), "ms": ms,
                  "recall": len(rel & set(ranked)) / len(rel), "ndcg": ndcg(ranked, rel, a.k),
@@ -466,30 +474,54 @@ async def cmd_cards(a):
 # ── annotation sheets for the human labels the proposal asks for ─────────
 
 async def cmd_annotate(a):
-    """Two-annotator sheets: passage relevance (pooled top 3 of every retrieval mode, test queries) and
-    change labels for the answer histories. The model-written labels go to the key file, not the sheet."""
+    """Two-annotator sheets: passage relevance and change labels for the answer histories. The relevance pool
+    is the top k of all four retrieval modes on the scored queries, after the same dev feedback replay as
+    `retrieval` (so the weighted ranking is the one that was scored), plus the labelled relevant passages.
+    The model-written labels go to the key file, not the sheet. If the relevance sheet and its key already
+    exist in --out, their items keep their numbers (and any ratings); only new pairs are appended."""
     boot_app()
     from app import retrieval
     pid = await load_passages(a.data)
     P = {p["id"]: p for p in jl(a.data / "passages.jsonl")}
+    allq = jl(a.data / "queries.jsonl")
+    dev = [q for q in allq if q.get("split") == "dev"]
+    if a.feedback_rounds and dev:
+        await replay_feedback(a, retrieval, pid, dev)
     items = []
-    for q in split(jl(a.data / "queries.jsonl"), a.split):
+    for q in split(allq, a.split):
         pool = set(q["relevant"])
-        for mode in ("bm25", "dense", "hybrid"):
-            pool |= {pid[h["doc_id"]] for h in await retrieval.retrieve(USER, q["question"], a.k, mode)}
+        for mode in retrieval.MODES:
+            pool |= set(await top_k(retrieval, pid, q["question"], a.k, mode))
         for p in sorted(pool):
             items.append({"case": f"{q['id']}:{p}", "family": q["id"], "domain": q.get("domain", ""),
                           "condition": "relevance", "question": q["question"], "title": P[p]["title"],
                           "passage": P[p]["text"], "key": {"passage": p, "model_label": int(p in q["relevant"])}})
     a.out.mkdir(parents=True, exist_ok=True)
-    blind_sheet(a.out / "relevance_rating.csv", items, ["question", "title", "passage"], ["relevant"])
+    sheet = a.out / "relevance_rating.csv"
+    if sheet.exists() and sheet.with_suffix(".key.jsonl").exists():
+        rows = list(csv.DictReader(open(sheet, encoding="utf-8")))
+        old_keys = jl(sheet.with_suffix(".key.jsonl"))
+        have = {k["case"] for k in old_keys}
+        new = [it for it in items if it["case"] not in have]
+        random.Random(SEED).shuffle(new)
+        with open(sheet, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            for i, it in enumerate(new, start=len(rows)):
+                w.writerow([i, it["question"], it["title"], it["passage"], "", ""])
+        keys = old_keys + [{"item": i, "condition": it["condition"], "family": it["family"],
+                            "domain": it.get("domain", ""), "case": it["case"], **it["key"]}
+                           for i, it in enumerate(new, start=len(rows))]
+        sheet.with_suffix(".key.jsonl").write_text("\n".join(json.dumps(k, ensure_ascii=False) for k in keys))
+        print(f"relevance: kept {len(rows)} items, appended {len(new)} new pairs")
+    else:
+        blind_sheet(sheet, items, ["question", "title", "passage"], ["relevant"])
     hist = [{"case": h["id"], "family": h.get("family", h["id"]), "domain": h.get("domain", ""),
              "condition": "change_label", "question": h["question"],
              "attempts": "\n".join(f"第{i + 1}次：{x}" for i, x in enumerate(h["attempts"])),
              "key": {"model_label": h["label"]}} for h in jl(a.data / "histories.jsonl")]
     blind_sheet(a.out / "history_labels.csv", hist, ["question", "attempts"], ["label"])
-    print(f"relevance: {len(items)} (question, passage) pairs from {len({i['family'] for i in items})} queries; "
-          f"history labels: {len(hist)}")
+    print(f"relevance pool: {len(items)} (question, passage) pairs from {len({i['family'] for i in items})} "
+          f"queries; history labels: {len(hist)}")
 
 
 # ── stats ───────────────────────────────────────────────────────────────
@@ -593,7 +625,7 @@ def main():
                        help="evaluator: arithmetic computed by the program (app/calc.py) or left to the model")
         s.add_argument("--n", type=int, default=20, help="cards: number of cards to generate")
         s.add_argument("--feedback-rounds", type=int, default=1,
-                       help="retrieval: rounds of simulated useful/not-useful feedback on dev queries (0 = off)")
+                       help="retrieval, annotate: rounds of simulated useful/not-useful feedback on dev queries (0 = off)")
         s.add_argument("--feedback-policy", choices=("strict", "quality"), default="quality",
                        help="retrieval: strict = every non-relevant passage is 'not useful'; "
                             "quality = only labelled low-quality passages are")

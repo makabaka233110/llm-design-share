@@ -6,7 +6,7 @@ proposal §4 中所有要求人工完成的评测，以及对应的表。表都�
 
 | # | proposal 原文 | 表 | 几个人 | 行数 × 列数 | 每人大约 |
 |---|---|---|---|---|---|
-| 1 | Two annotators will establish passage relevance | `relevance_rating.csv`（80 道 test 题，4 种检索方式前 3 名合并 + 标注的相关资料） | **2** | 433 × 1（0/1） | 40 分钟 |
+| 1 | Two annotators will establish passage relevance | `relevance_rating.csv`（80 道 test 题，4 种检索方式前 3 名合并 + 标注的相关资料；weighted 按检索实验同样的 dev 反馈回放后取前 3） | **2** | 448 × 1（0/1） | 40 分钟 |
 | 2 | blinded evaluation by two raters for correctness, usefulness, citation support, and model-versus-human score error（预先指定的 40 例平衡子集，见 `evaluator_subset.txt`） | `evaluator_rating.csv`（40 例 × 有证据/无证据） | **2** | 80 × 3 | 60 分钟 |
 | | （同上：citation support） | `evaluator_citations.csv` | **2** | 267 × 1 | 40 分钟 |
 | 3 | Two annotators will establish change labels（12 组历史作答） | `history_labels.csv` | **2** | 12 × 1 | 10 分钟 |

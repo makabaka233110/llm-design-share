@@ -63,7 +63,7 @@ DeepSeek flash，每个条件跑 2 次。详见 `迭代记录.md`「★ 计算�
 | weighted，quality 反馈 3 轮 | 0.775 | **0.594** | 0.075 |
 | weighted，strict 反馈 1 轮 | 0.787 | **0.679** | 0.075 |
 
-weighted 与 hybrid 之差按题做配对 bootstrap，nDCG@3 在 4 种设置下的 95% 置信区间都不含 0。例如 quality 1 轮为 −0.043 [−0.073, −0.016]。不加反馈时 weighted 与 hybrid 完全相同（优先级都是 2）。重建索引带来的噪声约为 ±0.008。
+weighted 与 hybrid 之差按题做配对 bootstrap，nDCG@3 在 4 种设置下的 95% 置信区间都不含 0。例如 quality 1 轮为 −0.043 [−0.073, −0.016]。不加反馈时 weighted 与 hybrid 完全相同（优先级都是 2）。重建索引带来的噪声约为 ±0.015（2026-11-25 多次重跑，hybrid 的 nDCG@3 在 0.740–0.754 之间，weighted 在 0.697–0.711 之间），比 weighted 与 hybrid 之差小。
 
 **结论：在这个数据集上，公式 (1) 的加权没有帮助，反而有害。** 原因有两个：
 
