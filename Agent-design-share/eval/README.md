@@ -146,6 +146,8 @@ weighted 与 hybrid 之差按题做配对 bootstrap，nDCG@3 在 4 种设置下�
 | | `unsupported_claims` | 总结或不足里，转写中没有依据的说法有几条（计数） |
 | | `missed_points` | 转写中的重要要点被总结漏掉了几条（计数） |
 | | `weakness_supported` | 列出的不足在转写里是否有依据（1–5） |
+| relevance | `relevant` | 这段资料能否用来回答或核对这道题：1 = 相关，0 = 不相关。只看题目和资料本身，不要打开 `eval/data/queries.jsonl` 里的标注 |
+| history_labels | `label` | 三次作答里的误解怎么变化：`persistent`（一直没改）/ `partial`（改了一部分）/ `corrected`（已改正） |
 | cards | `evidence_support` | 答案是否被引用的资料支持：1 = 不支持，3 = 部分支持，5 = 完全支持；没有引用时按 1 |
 | | `concept_coverage` | 卡片是否考查了该主题的核心概念，而不是边角细节（1–5） |
 | | `factually_correct` | 答案是否正确（0 或 1） |

@@ -8,3 +8,6 @@ __pycache__/
 /data/
 eval/results/
 .DS_Store
+
+# answer keys reveal conditions and model scores: kept by the non-rater, not in the repo
+eval/rating/*.key.jsonl

@@ -463,6 +463,35 @@ async def cmd_cards(a):
     usage(a.out)
 
 
+# ── annotation sheets for the human labels the proposal asks for ─────────
+
+async def cmd_annotate(a):
+    """Two-annotator sheets: passage relevance (pooled top 3 of every retrieval mode, test queries) and
+    change labels for the answer histories. The model-written labels go to the key file, not the sheet."""
+    boot_app()
+    from app import retrieval
+    pid = await load_passages(a.data)
+    P = {p["id"]: p for p in jl(a.data / "passages.jsonl")}
+    items = []
+    for q in split(jl(a.data / "queries.jsonl"), a.split):
+        pool = set(q["relevant"])
+        for mode in ("bm25", "dense", "hybrid"):
+            pool |= {pid[h["doc_id"]] for h in await retrieval.retrieve(USER, q["question"], a.k, mode)}
+        for p in sorted(pool):
+            items.append({"case": f"{q['id']}:{p}", "family": q["id"], "domain": q.get("domain", ""),
+                          "condition": "relevance", "question": q["question"], "title": P[p]["title"],
+                          "passage": P[p]["text"], "key": {"passage": p, "model_label": int(p in q["relevant"])}})
+    a.out.mkdir(parents=True, exist_ok=True)
+    blind_sheet(a.out / "relevance_rating.csv", items, ["question", "title", "passage"], ["relevant"])
+    hist = [{"case": h["id"], "family": h.get("family", h["id"]), "domain": h.get("domain", ""),
+             "condition": "change_label", "question": h["question"],
+             "attempts": "\n".join(f"第{i + 1}次：{x}" for i, x in enumerate(h["attempts"])),
+             "key": {"model_label": h["label"]}} for h in jl(a.data / "histories.jsonl")]
+    blind_sheet(a.out / "history_labels.csv", hist, ["question", "attempts"], ["label"])
+    print(f"relevance: {len(items)} (question, passage) pairs from {len({i['family'] for i in items})} queries; "
+          f"history labels: {len(hist)}")
+
+
 # ── stats ───────────────────────────────────────────────────────────────
 
 def kappa(r1: list, r2: list) -> float:
@@ -486,6 +515,11 @@ def cmd_stats(a):
         vals = [float(r[f"{col}_{x}"]) for x in ("r1", "r2") if r.get(f"{col}_{x}", "") != ""]
         return sum(vals) / len(vals) if vals else None
 
+    if key and "model_label" in next(iter(key.values())):  # human labels vs the model-written dataset labels
+        for c in cols:
+            for x in ("r1", "r2"):
+                ks = [str(key[int(r["item"])]["model_label"]) for r in rows]
+                print(f"  {c}_{x} vs model label  kappa={kappa([r[f'{c}_{x}'] for r in rows], ks):.2f}")
     if "human_score" in cols:  # model rubric average vs mean human score (evaluator sheet)
         pairs = defaultdict(list)
         for r in rows:
@@ -526,7 +560,7 @@ def cmd_stats(a):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("retrieval", "evaluator", "hints", "history", "scenarios", "asr", "cards"):
+    for name in ("retrieval", "evaluator", "hints", "history", "scenarios", "asr", "cards", "annotate"):
         s = sub.add_parser(name)
         s.add_argument("--data", type=Path, default=ROOT / "eval" / "sample")
         s.add_argument("--out", type=Path, default=ROOT / "eval" / "results")

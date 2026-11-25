@@ -1,0 +1,12 @@
+{"id": "r00", "domain": "computing", "kind": "knowledge", "audio": "rec00.wav", "transcript": "Redis 有两种持久化方式，RDB 快照和 AOF 日志。RDB 恢复快，但是可能丢掉最后一次快照之后的数据。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r01", "domain": "computing", "kind": "knowledge", "audio": "rec01.wav", "transcript": "TCP 需要三次握手，是为了让双方确认初始序列号，同时防止历史连接被误认为新连接。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r02", "domain": "economics", "kind": "knowledge", "audio": "rec02.wav", "transcript": "机会成本是做出选择时放弃的次优选项的价值，不是已经花掉的钱。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r03", "domain": "economics", "kind": "knowledge", "audio": "rec03.wav", "transcript": "沉没成本已经发生，无法收回，所以理性决策时不应该考虑它。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r04", "domain": "behavioral", "kind": "behavioral", "audio": "rec04.wav", "transcript": "我上一个项目里和产品经理有分歧，我先把双方的目标写下来，再用数据说明方案的影响，最后达成一致。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r05", "domain": "computing", "kind": "knowledge", "audio": "rec05.wav", "transcript": "如果系统每秒写入一万次，我会选择 AOF，并把同步策略设为每秒一次，这样宕机最多丢一秒的数据。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r06", "domain": "computing", "kind": "knowledge", "audio": "rec06.wav", "transcript": "数据库索引一般用 B 加树，因为它的高度低，范围查询也很高效。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r07", "domain": "economics", "kind": "knowledge", "audio": "rec07.wav", "transcript": "边际成本是多生产一个单位带来的额外成本，企业通常在边际收益等于边际成本时达到利润最大。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r08", "domain": "behavioral", "kind": "behavioral", "audio": "rec08.wav", "transcript": "我遇到过一次线上故障，第一步是止损回滚，然后定位原因，最后写复盘文档，补上监控。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r09", "domain": "computing", "kind": "knowledge", "audio": "rec09.wav", "transcript": "缓存穿透是查询不存在的数据，请求直接打到数据库，可以用布隆过滤器或者缓存空值来解决。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r10", "domain": "economics", "kind": "knowledge", "audio": "rec10.wav", "transcript": "需求价格弹性衡量的是价格变化百分之一时，需求量变化的百分比。", "source": "synthetic: macOS say -v Tingting"}
+{"id": "r11", "domain": "behavioral", "kind": "behavioral", "audio": "rec11.wav", "transcript": "当团队优先级冲突时，我会先和负责人对齐目标，然后按影响和紧急程度排序，并及时同步给大家。", "source": "synthetic: macOS say -v Tingting"}
