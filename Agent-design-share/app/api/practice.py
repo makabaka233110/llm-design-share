@@ -255,8 +255,13 @@ async def gap_card_draft(gid: int, user: User):
     g = db.owned("gaps", gid, user)
     if not g["confirmed"]:
         raise HTTPException(400, "请先确认该薄弱点")
-    passages = await retrieval.evidence(user, g["text"])
-    cards = await call(agent.gen_cards, user, g["text"], 1, passages) if passages else []
+    # A gap is a critique ("未说明两种机制各自适用的场景"), not a topic: searching with it alone matched CAP's
+    # "CP vs AP" instead of Redis persistence. Search with the linked question + concept, like hints and scenarios.
+    q = db.row("SELECT text, concept FROM questions WHERE id=? AND user_id=?", g["question_id"], user) \
+        if g["question_id"] else None
+    topic = f"{q['text']} {q['concept'] or ''}（薄弱点：{g['text']}）" if q else g["text"]
+    passages = await retrieval.evidence(user, topic, domain_id=g["domain_id"])
+    cards = await call(agent.gen_cards, user, topic, 1, passages) if passages else []
     draft = cards[0] if cards else {"question": g["text"], "answer": "", "sources": []}
     return {**draft, "gap_id": gid, "question_id": g["question_id"], "domain_id": g["domain_id"]}
 

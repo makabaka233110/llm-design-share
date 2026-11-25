@@ -374,7 +374,7 @@ function turnView(t) {
   if (t.role === 'interviewer') return h`<div class="msg ai fade"><div class="who">面试官</div><div class="bubble">${t.content}</div></div>`;
   const ev = t.evaluation;
   return h`<div class="msg me fade"><div class="who" style="text-align:right">你</div><div class="bubble">${t.content}</div>
-    ${ev ? h`<details style="margin-top:4px"><summary>${ev.status === 'ok' ? `评估 ${avg(ev.scores)} / 5` : '评估：' + ev.status}</summary>
+    ${ev ? h`<details style="margin-top:4px"><summary>${ev.status === 'ok' ? `评估 ${avg(ev.scores)} / 5` : ev.status === 'uncertain' ? '评估：无法确定（知识库缺少相关资料，展开查看）' : '评估不可用'}</summary>
       <div class="card flat" style="margin-top:6px">${evalView(ev, { questionId: t.question_id })}</div></details>` : ''}</div>`;
 }
 

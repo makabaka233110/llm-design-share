@@ -207,6 +207,21 @@ def test_claims_concepts_related_gap_practice(c):
     assert c.post(f"/api/gaps/{gap['id']}/practice").json()["question_id"] == qid
 
 
+def test_gap_card_uses_linked_question(c):
+    """Bug report: the gap "未说明两种机制各自适用的场景" (from a Redis RDB/AOF question) produced a CAP card,
+    because the gap text alone was the search query. The linked question must steer retrieval."""
+    for title, body in (("CAP 定理", "网络分区时，系统需要在一致性和可用性两种特性之间取舍，CP 或 AP 各有适用场景。"),
+                        ("Redis 持久化", "Redis 有 RDB 快照和 AOF 日志两种持久化机制。RDB 恢复快、可能丢最近数据；"
+                                         "AOF 丢数据少、文件大，需要重写。")):
+        c.post("/api/kb/docs", json={"title": title, "body": body, "reviewed": True})
+    q = c.post("/api/questions", json={"text": "Redis 的 RDB 和 AOF 持久化有什么区别？", "concept": "Redis 持久化"}).json()
+    gap = c.post("/api/gaps", json={"text": "未说明两种机制各自适用的场景，也未给出任何举例", "question_id": q["id"]}).json()
+    n = len(PROMPTS)
+    c.post(f"/api/gaps/{gap['id']}/card-draft")
+    card_prompt = [p for p in PROMPTS[n:] if "闪卡" in p][-1]
+    assert "Redis 持久化" in card_prompt and "RDB" in card_prompt.split("参考资料")[1]
+
+
 def test_cards(c):
     card = c.post("/api/cards", json={"question": "Q", "answer": "A"}).json()
     assert card["policy"] == "sm2" and any(x["id"] == card["id"] for x in c.get("/api/cards/due").json())
