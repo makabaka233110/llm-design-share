@@ -109,7 +109,12 @@ function evalView(ev, { questionId, compact = false } = {}) {
       ${gap ? h`<button class="ghost sm" data-text="${p.text}" onclick="markGap(this, ${questionId || 'null'})">记为薄弱点</button>` : ''}</li>`)}</ul>` : '';
   const strs = (title, list, cls) => list && list.length ? h`<h3>${title}</h3><ul class="points ${cls}">${list.map(t => h`<li>${t}</li>`)}</ul>` : '';
   let head;
-  if (ev.status === 'ok') head = h`<div class="row between"><b>综合 ${avg(ev.scores)} / 5</b><span class="badge ok">有依据评分</span></div><div style="margin-top:10px">${meters(ev.scores)}</div>`;
+  const grounded = (ev.evidence || []).length > 0;  // scored without any reviewed passage: say so, don't claim grounding
+  if (ev.status === 'ok') head = h`<div class="row between"><b>综合 ${avg(ev.scores)} / 5</b>${grounded
+    ? h`<span class="badge ok">有依据评分</span>` : h`<span class="badge warn">未引用资料 · 由模型判断</span>`}</div>
+    ${grounded ? '' : h`<div class="notice warn tiny" style="margin-top:8px">${ev.evidence_mode === 'none' ? '本次评估没有提供参考资料。'
+      : '本题没有找到相关的已审核资料。'}结构和推理的评分可以参考；其中涉及事实的判断没有经过核对，请自行确认。</div>`}
+    <div style="margin-top:10px">${meters(ev.scores)}</div>`;
   else if (ev.status === 'uncertain') head = h`<div class="notice warn"><b>无法确定评分</b>　${fb.reason || ''}</div>`;
   else head = h`<div class="notice bad"><b>评估不可用</b>　${fb.reason || ''}</div>`;
   const calc = fb.calc && fb.calc.length ? h`<h3>程序核算</h3><ul class="points ${fb.calc.every(c => c.ok) ? 'ok' : 'bad'}">${fb.calc.map(c => h`<li>${c.expr} = <b>${c.value}</b>
